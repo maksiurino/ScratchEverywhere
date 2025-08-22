@@ -16,30 +16,10 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 endif()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 
-CPMAddPackage(
-    NAME SDL2
-    GITHUB_REPOSITORY libsdl-org/SDL
-	GIT_TAG release-2.32.8
-    VERSION 2.32.8
-)
-CPMAddPackage(
-    NAME SDL2_image
-    GITHUB_REPOSITORY libsdl-org/SDL_image
-	GIT_TAG release-2.8.8
-    VERSION 2.8.8
-)
-CPMAddPackage(
-    NAME SDL2_mixer
-    GITHUB_REPOSITORY libsdl-org/SDL_mixer
-	GIT_TAG release-2.8.1
-    VERSION 2.8.1
-)
-CPMAddPackage(
-    NAME SDL2_ttf
-    GITHUB_REPOSITORY libsdl-org/SDL_ttf
-	GIT_TAG release-2.24.0
-    VERSION 2.24.0
-)
+find_package(SDL2 REQUIRED)
+find_package(SDL2_image REQUIRED)
+find_package(SDL2_mixer REQUIRED)
+find_package(SDL2_ttf REQUIRED)
 
 CPMAddPackage(
     NAME nlohmann_json
@@ -75,11 +55,18 @@ add_executable(scratch-everywhere ${SOURCE_FILES})
 target_compile_definitions(scratch-everywhere PRIVATE __PC__ SDL_BUILD ENABLE_AUDIO) # TODO: make these configurable
 
 target_link_libraries(scratch-everywhere PRIVATE
-	SDL2::SDL2
-    SDL2_image::SDL2_image
-    SDL2_mixer::SDL2_mixer
-    SDL2_ttf::SDL2_ttf
+	SDL2::SDL2 
     nlohmann_json::nlohmann_json
 )
 
+if (NINTENDO_WIIU)
+    target_link_libraries(scratch-everywhere PRIVATE SDL2_image::SDL2_image-static SDL2_mixer::SDL2_mixer-static SDL2_ttf::SDL2_ttf-static)
+else()
+    target_link_libraries(scratch-everywhere PRIVATE SDL2_image::SDL2_image SDL2_mixer::SDL2_mixer SDL2_ttf::SDL2_ttf)
+endif()
+
 target_include_directories(scratch-everywhere PRIVATE ${SOURCES} ${miniz_SOURCE_DIR})
+
+if (NINTENDO_WIIU)
+wut_create_rpx(scratch-everywhere)
+endif()
