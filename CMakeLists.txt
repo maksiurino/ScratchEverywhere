@@ -16,10 +16,37 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 endif()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 
+if(NINTENDO_3DS)
+CPMAddPackage(
+    NAME SDL2
+    GITHUB_REPOSITORY libsdl-org/SDL
+	GIT_TAG release-2.32.8
+    VERSION 2.32.8
+)
+CPMAddPackage(
+    NAME SDL2_mixer
+    GITHUB_REPOSITORY libsdl-org/SDL_mixer
+	GIT_TAG release-2.8.1
+    VERSION 2.8.1
+	OPTIONS "SDL2MIXER_VORBIS STB" "SDL2MIXER_MP3 MINIMP3" "SDL2MIXER_FLAC DRFLAC" "SDL2MIXER_MOD OFF" "SDL2MIXER_OPUS OFF" "SDL2MIXER_FLUIDSYNTH OFF" "SDL2MIXER_WAVPACK OFF" "SDL2MIXER_MIDI OFF"
+)
+CPMAddPackage(
+	NAME nanosvg
+	GITHUB_REPOSITORY memononen/nanosvg
+	GIT_TAG HEAD
+)
+CPMAddPackage(
+    NAME stb
+    GITHUB_REPOSITORY nothings/stb
+    GIT_TAG master
+	DOWNLOAD_ONLY YES
+)
+else()
 find_package(SDL2 REQUIRED)
 find_package(SDL2_image REQUIRED)
 find_package(SDL2_mixer REQUIRED)
 find_package(SDL2_ttf REQUIRED)
+endif()
 
 CPMAddPackage(
     NAME nlohmann_json
@@ -36,7 +63,12 @@ FetchContent_MakeAvailable(miniz)
 
 # TODO: add cloud variable support
 
+if(NINTENDO_3DS)
+set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/3ds source/sdl/audio)
+else()
 set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio)
+endif()
+
 set(SOURCE_FILES)
 foreach(DIR IN LISTS SOURCES)
     file(GLOB DIR_SOURCES
@@ -46,27 +78,40 @@ foreach(DIR IN LISTS SOURCES)
     )
 	list(APPEND SOURCE_FILES ${DIR_SOURCES})
 endforeach()
-list(REMOVE_DUPLICATES SOURCE_FILES)
 
 list(APPEND SOURCE_FILES "${miniz_SOURCE_DIR}/miniz.c")
 
 add_executable(scratch-everywhere ${SOURCE_FILES})
 
-target_compile_definitions(scratch-everywhere PRIVATE __PC__ SDL_BUILD ENABLE_AUDIO) # TODO: make these configurable
+if(NINTENDO_WIIU)
+	target_compile_definitions(scratch-everywhere PRIVATE __WIIU__ SDL_BUILD ENABLE_AUDIO)
+elseif(NINTENDO_3DS)
+	target_compile_definitions(scratch-everywhere PRIVATE __3DS__ ENABLE_AUDIO)
+else()
+	target_compile_definitions(scratch-everywhere PRIVATE __PC__ SDL_BUILD ENABLE_AUDIO) # TODO: make these configurable
+endif()
 
 target_link_libraries(scratch-everywhere PRIVATE
 	SDL2::SDL2 
     nlohmann_json::nlohmann_json
 )
 
-if (NINTENDO_WIIU)
-    target_link_libraries(scratch-everywhere PRIVATE SDL2_image::SDL2_image-static SDL2_mixer::SDL2_mixer-static SDL2_ttf::SDL2_ttf-static)
+if(NINTENDO_WIIU)
+	target_link_libraries(scratch-everywhere PRIVATE SDL2_image::SDL2_image-static SDL2_mixer::SDL2_mixer-static SDL2_ttf::SDL2_ttf-static)
+elseif(NINTENDO_3DS)
+	target_link_libraries(scratch-everywhere PRIVATE SDL2_mixer::SDL2_mixer-static nanosvg "${DEVKITPRO}/libctru/lib/libcitro2d.a" "${DEVKITPRO}/libctru/lib/libcitro3d.a")
 else()
     target_link_libraries(scratch-everywhere PRIVATE SDL2_image::SDL2_image SDL2_mixer::SDL2_mixer SDL2_ttf::SDL2_ttf)
 endif()
 
-target_include_directories(scratch-everywhere PRIVATE ${SOURCES} ${miniz_SOURCE_DIR})
+if(NINTENDO_3DS)
+	target_include_directories(scratch-everywhere PRIVATE ${SOURCES} ${miniz_SOURCE_DIR} "${nanosvg_SOURCE_DIR}/src" ${stb_SOURCE_DIR})
+else()
+	target_include_directories(scratch-everywhere PRIVATE ${SOURCES} ${miniz_SOURCE_DIR})
+endif()
 
 if (NINTENDO_WIIU)
 wut_create_rpx(scratch-everywhere)
+elseif(NINTENDO_3DS)
+ctr_create_3dsx(scratch-everywhere)
 endif()
