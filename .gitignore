@@ -62,3 +62,6 @@ scratch-wii.zip
 
 # Stored Files
 cloud-username.txt
+
+# Other
+cmake/CPM.cmake
