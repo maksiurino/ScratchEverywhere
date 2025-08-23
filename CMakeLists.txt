@@ -33,12 +33,12 @@ CPMAddPackage(
 CPMAddPackage(
 	NAME nanosvg
 	GITHUB_REPOSITORY memononen/nanosvg
-	GIT_TAG HEAD
+	GIT_TAG HEAD # TODO: pin commit
 )
 CPMAddPackage(
     NAME stb
     GITHUB_REPOSITORY nothings/stb
-    GIT_TAG master
+	GIT_TAG master # TODO: pin commit
 	DOWNLOAD_ONLY YES
 )
 else()
@@ -115,7 +115,7 @@ target_link_libraries(scratch-everywhere PRIVATE
 
 
 if(NINTENDO_3DS)
-	target_link_libraries(scratch-everywhere PRIVATE SDL2::SDL2 SDL2_mixer::SDL2_mixer-static nanosvg "${DEVKITPRO}/libctru/lib/libcitro2d.a" "${DEVKITPRO}/libctru/lib/libcitro3d.a")
+	target_link_libraries(scratch-everywhere PRIVATE SDL2::SDL2 SDL2_mixer::SDL2_mixer-static nanosvg citro2d citro3d)
 endif()
 
 if(NINTENDO_3DS)
@@ -125,9 +125,9 @@ else()
 endif()
 
 if (NINTENDO_WIIU)
-wut_create_rpx(scratch-everywhere)
+	wut_create_rpx(scratch-everywhere)
 elseif(NINTENDO_3DS)
-ctr_create_3dsx(scratch-everywhere ROMFS ${CMAKE_CURRENT_SOURCE_DIR}/romfs)
+	ctr_create_3dsx(scratch-everywhere ROMFS ${CMAKE_CURRENT_SOURCE_DIR}/romfs)
 elseif(NINTENDO_SWITCH)
-nx_create_nro(scratch-everywhere ROMFS ${CMAKE_CURRENT_SOURCE_DIR}/romfs)
+	nx_create_nro(scratch-everywhere ROMFS ${CMAKE_CURRENT_SOURCE_DIR}/romfs)
 endif()
