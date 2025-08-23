@@ -42,10 +42,12 @@ CPMAddPackage(
 	DOWNLOAD_ONLY YES
 )
 else()
-find_package(SDL2 REQUIRED)
-find_package(SDL2_image REQUIRED)
-find_package(SDL2_mixer REQUIRED)
-find_package(SDL2_ttf REQUIRED)
+find_package(PkgConfig REQUIRED)
+
+pkg_check_modules(SDL2 REQUIRED IMPORTED_TARGET sdl2)
+pkg_check_modules(SDL2_IMAGE REQUIRED SDL2_image>=2.0.0)
+pkg_check_modules(SDL2_TTF REQUIRED SDL2_ttf>=2.0.0)
+pkg_check_modules(SDL2_MIXER REQUIRED SDL2_mixer>=2.0.0)
 endif()
 
 CPMAddPackage(
@@ -60,8 +62,6 @@ FetchContent_Declare(
     URL https://github.com/richgel999/miniz/releases/download/3.0.2/miniz-3.0.2.zip
 )
 FetchContent_MakeAvailable(miniz)
-
-# TODO: add cloud variable support
 
 if(NINTENDO_3DS)
 set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/3ds source/sdl/audio)
@@ -83,7 +83,25 @@ list(APPEND SOURCE_FILES "${miniz_SOURCE_DIR}/miniz.c")
 
 add_executable(scratch-everywhere ${SOURCE_FILES})
 
-if(NINTENDO_WIIU)
+if (NOT NINTENDO_3DS)
+	target_include_directories(scratch-everywhere PRIVATE
+		${SDL2_INCLUDE_DIRS}
+	    ${SDL2_IMAGE_INCLUDE_DIRS}
+	    ${SDL2_TTF_INCLUDE_DIRS}
+	    ${SDL2_MIXER_INCLUDE_DIRS}
+	)
+
+	target_link_libraries(scratch-everywhere PRIVATE
+	    ${SDL2_LIBRARIES}
+		${SDL2_IMAGE_LIBRARIES}
+	    ${SDL2_TTF_LIBRARIES}
+		${SDL2_MIXER_LIBRARIES}
+	)
+endif()
+
+# TODO: add cloud variable support
+
+if(NINTENDO_WIIU OR NINTENDO_SWITCH)
 	target_compile_definitions(scratch-everywhere PRIVATE SDL_BUILD ENABLE_AUDIO)
 elseif(NINTENDO_3DS)
 	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_AUDIO)
@@ -92,16 +110,12 @@ else()
 endif()
 
 target_link_libraries(scratch-everywhere PRIVATE
-	SDL2::SDL2 
     nlohmann_json::nlohmann_json
 )
 
-if(NINTENDO_WIIU)
-	target_link_libraries(scratch-everywhere PRIVATE SDL2_image::SDL2_image-static SDL2_mixer::SDL2_mixer-static SDL2_ttf::SDL2_ttf-static)
-elseif(NINTENDO_3DS)
-	target_link_libraries(scratch-everywhere PRIVATE SDL2_mixer::SDL2_mixer-static nanosvg "${DEVKITPRO}/libctru/lib/libcitro2d.a" "${DEVKITPRO}/libctru/lib/libcitro3d.a")
-else()
-    target_link_libraries(scratch-everywhere PRIVATE SDL2_image::SDL2_image SDL2_mixer::SDL2_mixer SDL2_ttf::SDL2_ttf)
+
+if(NINTENDO_3DS)
+	target_link_libraries(scratch-everywhere PRIVATE SDL2::SDL2 SDL2_mixer::SDL2_mixer-static nanosvg "${DEVKITPRO}/libctru/lib/libcitro2d.a" "${DEVKITPRO}/libctru/lib/libcitro3d.a")
 endif()
 
 if(NINTENDO_3DS)
@@ -114,4 +128,6 @@ if (NINTENDO_WIIU)
 wut_create_rpx(scratch-everywhere)
 elseif(NINTENDO_3DS)
 ctr_create_3dsx(scratch-everywhere ROMFS ${CMAKE_CURRENT_SOURCE_DIR}/romfs)
+elseif(NINTENDO_SWITCH)
+nx_create_nro(scratch-everywhere ROMFS ${CMAKE_CURRENT_SOURCE_DIR}/romfs)
 endif()
