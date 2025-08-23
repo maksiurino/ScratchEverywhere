@@ -84,9 +84,9 @@ list(APPEND SOURCE_FILES "${miniz_SOURCE_DIR}/miniz.c")
 add_executable(scratch-everywhere ${SOURCE_FILES})
 
 if(NINTENDO_WIIU)
-	target_compile_definitions(scratch-everywhere PRIVATE __WIIU__ SDL_BUILD ENABLE_AUDIO)
+	target_compile_definitions(scratch-everywhere PRIVATE SDL_BUILD ENABLE_AUDIO)
 elseif(NINTENDO_3DS)
-	target_compile_definitions(scratch-everywhere PRIVATE __3DS__ ENABLE_AUDIO)
+	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_AUDIO)
 else()
 	target_compile_definitions(scratch-everywhere PRIVATE __PC__ SDL_BUILD ENABLE_AUDIO) # TODO: make these configurable
 endif()
