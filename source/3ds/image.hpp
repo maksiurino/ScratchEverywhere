@@ -9,11 +9,29 @@
 struct ImageData {
     C2D_Image image;
     u16 freeTimer = 240;
+    C2D_SpriteSheet sheet;
 };
 
-bool get_C2D_Image(Image::ImageRGBA rgba);
-bool queueC2DImage(Image::ImageRGBA &rgba);
+struct imageRGBA {
+    std::string name;     // "image"
+    std::string fullName; // "image.png"
+    int width;
+    int height;
+    bool isSVG = false;
+
+    //  same as width/height but as powers of 2 for 3DS
+    int textureWidth;
+    int textureHeight;
+
+    size_t textureMemSize;
+    unsigned char *data;
+};
+
+extern std::vector<imageRGBA> imageRGBAS;
+
+bool get_C2D_Image(imageRGBA rgba);
 void freeRGBA(const std::string &imageName);
 unsigned char *SVGToRGBA(const void *svg_data, size_t svg_size, int &width, int &height);
+bool getImageFromT3x(const std::string &filePath);
 
 extern std::unordered_map<std::string, ImageData> imageC2Ds;

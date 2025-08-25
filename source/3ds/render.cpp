@@ -8,25 +8,40 @@
 #include "../scratch/unzip.hpp"
 #include "image.hpp"
 #include "interpret.hpp"
-#include "spriteSheet.hpp"
+#ifdef ENABLE_AUDIO
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_mixer.h>
+#endif
+
+#ifdef ENABLE_CLOUDVARS
+#include <malloc.h>
+
+#define SOC_ALIGN 0x1000
+#define SOC_BUFFERSIZE 0x100000
+#endif
 
 #define SCREEN_WIDTH 400
 #define BOTTOM_SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 240
 
 C3D_RenderTarget *topScreen = nullptr;
+C3D_RenderTarget *topScreenRightEye = nullptr;
 C3D_RenderTarget *bottomScreen = nullptr;
 u32 clrWhite = C2D_Color32f(1, 1, 1, 1);
 u32 clrBlack = C2D_Color32f(0, 0, 0, 1);
 u32 clrGreen = C2D_Color32f(0, 0, 1, 1);
 u32 clrScratchBlue = C2D_Color32(71, 107, 115, 255);
-std::chrono::_V2::system_clock::time_point startTime = std::chrono::high_resolution_clock::now();
-std::chrono::_V2::system_clock::time_point endTime = std::chrono::high_resolution_clock::now();
+std::chrono::_V2::system_clock::time_point Render::startTime = std::chrono::high_resolution_clock::now();
+std::chrono::_V2::system_clock::time_point Render::endTime = std::chrono::high_resolution_clock::now();
 
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
+bool Render::hasFrameBegan;
+static int currentScreen = 0;
 std::vector<Monitor> Render::visibleVariables;
+
+#ifdef ENABLE_CLOUDVARS
+static uint32_t *SOC_buffer = NULL;
+#endif
 
 bool Render::Init() {
     gfxInitDefault();
@@ -38,27 +53,103 @@ bool Render::Init() {
     C3D_Init(C3D_DEFAULT_CMDBUF_SIZE);
     C2D_Init(C2D_DEFAULT_MAX_OBJECTS);
     C2D_Prepare();
+    gfxSet3D(true);
     topScreen = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
+    topScreenRightEye = C2D_CreateScreenTarget(GFX_TOP, GFX_RIGHT);
     bottomScreen = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
 
+#ifdef ENABLE_CLOUDVARS
+    int ret;
+
+    SOC_buffer = (uint32_t *)memalign(SOC_ALIGN, SOC_BUFFERSIZE);
+    if (SOC_buffer == NULL) {
+        Log::logError("memalign: failed to allocate");
+    } else if ((ret = socInit(SOC_buffer, SOC_BUFFERSIZE)) != 0) {
+        std::ostringstream err;
+        err << "socInit: 0x" << std::hex << std::setw(8) << std::setfill('0') << ret;
+        Log::logError(err.str());
+    }
+#endif
+
     romfsInit();
-    // waiting for beta 12 to enable,,
+#ifdef ENABLE_AUDIO
     SDL_Init(SDL_INIT_AUDIO);
-    // Initialize SDL_mixer
-    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
+    int sampleRate = 15000;
+    int bufferSize = 1024;
+    int channels = 1;
+
+    if (OS::isNew3DS()) {
+        sampleRate = 48000;
+        bufferSize = 4096;
+        channels = 2;
+    }
+
+    if (Mix_OpenAudio(sampleRate, MIX_DEFAULT_FORMAT, channels, bufferSize) < 0) {
         Log::logWarning(std::string("SDL_mixer could not initialize! Error: ") + Mix_GetError());
-        // not returning false since emulators by default will error here
     }
     int flags = MIX_INIT_MP3 | MIX_INIT_OGG;
     if (Mix_Init(flags) != flags) {
         Log::logWarning(std::string("SDL_mixer could not initialize MP3/OGG support! SDL_mixer Error: ") + Mix_GetError());
     }
+#endif
 
     return true;
 }
 
 bool Render::appShouldRun() {
-    return aptMainLoop();
+    if (toExit) return false;
+    if (!aptMainLoop()) {
+        toExit = true;
+        return false;
+    }
+    return true;
+}
+
+void *Render::getRenderer() {
+    return nullptr;
+}
+
+int Render::getWidth() {
+    if (currentScreen == 0)
+        return SCREEN_WIDTH;
+    else return BOTTOM_SCREEN_WIDTH;
+}
+int Render::getHeight() {
+    return SCREEN_HEIGHT;
+}
+
+void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
+    if (!hasFrameBegan) {
+        C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+        C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
+        hasFrameBegan = true;
+    }
+    if (screen == 0) {
+        currentScreen = 0;
+        C2D_TargetClear(topScreen, C2D_Color32(colorR, colorG, colorB, 255));
+        C2D_SceneBegin(topScreen);
+    } else {
+        currentScreen = 1;
+        C2D_TargetClear(bottomScreen, C2D_Color32(colorR, colorG, colorB, 255));
+        C2D_SceneBegin(bottomScreen);
+    }
+}
+
+void Render::endFrame(bool shouldFlush) {
+    C2D_Flush();
+    C3D_FrameEnd(0);
+    if (shouldFlush) Image::FlushImages();
+    hasFrameBegan = false;
+}
+
+void Render::drawBox(int w, int h, int x, int y, int colorR, int colorG, int colorB, int colorA) {
+    C2D_DrawRectSolid(
+        x - (w / 2.0f),
+        y - (h / 2.0f),
+        1,
+        w,
+        h,
+        C2D_Color32(colorR, colorG, colorB, colorA));
 }
 
 void drawBlackBars(int screenWidth, int screenHeight) {
@@ -85,7 +176,7 @@ void drawBlackBars(int screenWidth, int screenHeight) {
     }
 }
 
-void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId, bool bottom = false) {
+void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId, bool bottom = false, float x3DOffset = 0.0f) {
 
     if (!currentSprite || currentSprite == nullptr) return;
 
@@ -93,7 +184,7 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
     bool isSVG = false;
     double screenOffset = (bottom && Render::renderMode != Render::BOTTOM_SCREEN_ONLY) ? -SCREEN_HEIGHT : 0;
     bool imageLoaded = false;
-    for (Image::ImageRGBA rgba : Image::imageRGBAS) {
+    for (imageRGBA rgba : imageRGBAS) {
         if (rgba.name == costumeId) {
 
             if (rgba.isSVG) isSVG = true;
@@ -103,11 +194,11 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
 
             if (imageC2Ds.find(costumeId) == imageC2Ds.end() || image->tex == nullptr || image->subtex == nullptr) {
 
-                auto rgbaFind = std::find_if(Image::imageRGBAS.begin(), Image::imageRGBAS.end(),
-                                             [&](const Image::ImageRGBA &rgba) { return rgba.name == costumeId; });
+                auto rgbaFind = std::find_if(imageRGBAS.begin(), imageRGBAS.end(),
+                                             [&](const imageRGBA &rgba) { return rgba.name == costumeId; });
 
-                if (rgbaFind != Image::imageRGBAS.end()) {
-                    imageLoaded = queueC2DImage(*rgbaFind);
+                if (rgbaFind != imageRGBAS.end()) {
+                    imageLoaded = get_C2D_Image(*rgbaFind);
                 } else {
                     imageLoaded = false;
                 }
@@ -131,6 +222,8 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
     if (isSVG) {
         spriteSizeX *= 2;
         spriteSizeY *= 2;
+        currentSprite->spriteHeight *= 2;
+        currentSprite->spriteWidth *= 2;
     }
     double scale;
     double heightMultiplier = 0.5;
@@ -173,8 +266,8 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
 
         C2D_DrawImageAtRotated(
             imageC2Ds[costumeId].image,
-            (currentSprite->xPosition * scale) + (screenWidth / 2) - offsetX * std::cos(rotation) + offsetY * std::sin(rotation),
-            (currentSprite->yPosition * -1 * scale) + (SCREEN_HEIGHT * heightMultiplier) + screenOffset - offsetX * std::sin(rotation) - offsetY * std::cos(rotation),
+            static_cast<int>((currentSprite->xPosition * scale) + (screenWidth / 2) - offsetX * std::cos(rotation) + offsetY * std::sin(rotation)) + x3DOffset,
+            static_cast<int>((currentSprite->yPosition * -1 * scale) + (SCREEN_HEIGHT * heightMultiplier) + screenOffset - offsetX * std::sin(rotation) - offsetY * std::cos(rotation)),
             1,
             rotation,
             &tinty,
@@ -213,71 +306,113 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
 }
 
 void Render::renderSprites() {
-
     C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
     C2D_TargetClear(topScreen, clrWhite);
+    C2D_TargetClear(topScreenRightEye, clrWhite);
     C2D_TargetClear(bottomScreen, clrWhite);
 
+    float slider = osGet3DSliderState();
+    const float depthScale = 8.0f / sprites.size();
+
+    std::vector<Sprite *> spritesByLayer = sprites;
+    std::sort(spritesByLayer.begin(), spritesByLayer.end(),
+              [](const Sprite *a, const Sprite *b) {
+                  return a->layer < b->layer;
+              });
+
+    // ---------- LEFT EYE ----------
     if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
         C2D_SceneBegin(topScreen);
-
-        // int times = 1;
         C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
 
-        // Sort sprites by layer (lowest to highest)
-        std::vector<Sprite *> spritesByLayer = sprites;
-        std::sort(spritesByLayer.begin(), spritesByLayer.end(),
-                  [](const Sprite *a, const Sprite *b) {
-                      return a->layer < b->layer;
-                  });
-
-        // Now render sprites in order from lowest to highest layer
-        for (Sprite *currentSprite : spritesByLayer) {
+        for (size_t i = 0; i < spritesByLayer.size(); i++) {
+            Sprite *currentSprite = spritesByLayer[i];
             if (!currentSprite->visible) continue;
 
-            // look through every costume in sprite for correct one
             int costumeIndex = 0;
             for (const auto &costume : currentSprite->costumes) {
                 if (costumeIndex == currentSprite->currentCostume) {
                     currentSprite->rotationCenterX = costume.rotationCenterX;
                     currentSprite->rotationCenterY = costume.rotationCenterY;
-                    renderImage(&imageC2Ds[costume.id].image, currentSprite, costume.id);
+
+                    size_t totalSprites = spritesByLayer.size();
+                    float eyeOffset = -slider * (static_cast<float>(totalSprites - 1 - i) * depthScale);
+
+                    renderImage(&imageC2Ds[costume.id].image,
+                                currentSprite,
+                                costume.id,
+                                false,
+                                eyeOffset);
                     break;
                 }
                 costumeIndex++;
             }
         }
+        renderVisibleVariables();
     }
+
     if (Render::renderMode != Render::BOTH_SCREENS)
         drawBlackBars(SCREEN_WIDTH, SCREEN_HEIGHT);
 
-    renderVisibleVariables();
+    // ---------- RIGHT EYE ----------
+    if (slider > 0.0f && Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
+        C2D_SceneBegin(topScreenRightEye);
+        C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
 
-    if (Render::renderMode == Render::BOTH_SCREENS || Render::renderMode == Render::BOTTOM_SCREEN_ONLY) {
-        C2D_SceneBegin(bottomScreen);
-        // Sort sprites by layer (lowest to highest)
-        std::vector<Sprite *> spritesByLayer = sprites;
-        std::sort(spritesByLayer.begin(), spritesByLayer.end(),
-                  [](const Sprite *a, const Sprite *b) {
-                      return a->layer < b->layer;
-                  });
-
-        // Now render sprites in order from lowest to highest layer
-        for (Sprite *currentSprite : spritesByLayer) {
+        for (size_t i = 0; i < spritesByLayer.size(); i++) {
+            Sprite *currentSprite = spritesByLayer[i];
             if (!currentSprite->visible) continue;
 
-            // look through every costume in sprite for correct one
             int costumeIndex = 0;
             for (const auto &costume : currentSprite->costumes) {
                 if (costumeIndex == currentSprite->currentCostume) {
                     currentSprite->rotationCenterX = costume.rotationCenterX;
                     currentSprite->rotationCenterY = costume.rotationCenterY;
-                    renderImage(&imageC2Ds[costume.id].image, currentSprite, costume.id, true);
+
+                    size_t totalSprites = spritesByLayer.size();
+                    float eyeOffset = slider * (static_cast<float>(totalSprites - 1 - i) * depthScale);
+
+                    renderImage(&imageC2Ds[costume.id].image,
+                                currentSprite,
+                                costume.id,
+                                false,
+                                eyeOffset);
                     break;
                 }
                 costumeIndex++;
             }
         }
+        renderVisibleVariables();
+    }
+
+    if (Render::renderMode != Render::BOTH_SCREENS)
+        drawBlackBars(SCREEN_WIDTH, SCREEN_HEIGHT);
+
+    // ---------- BOTTOM SCREEN ----------
+    if (Render::renderMode == Render::BOTH_SCREENS || Render::renderMode == Render::BOTTOM_SCREEN_ONLY) {
+        C2D_SceneBegin(bottomScreen);
+
+        for (size_t i = 0; i < spritesByLayer.size(); i++) {
+            Sprite *currentSprite = spritesByLayer[i];
+            if (!currentSprite->visible) continue;
+
+            int costumeIndex = 0;
+            for (const auto &costume : currentSprite->costumes) {
+                if (costumeIndex == currentSprite->currentCostume) {
+                    currentSprite->rotationCenterX = costume.rotationCenterX;
+                    currentSprite->rotationCenterY = costume.rotationCenterY;
+
+                    renderImage(&imageC2Ds[costume.id].image,
+                                currentSprite,
+                                costume.id,
+                                true,
+                                0.0f);
+                    break;
+                }
+                costumeIndex++;
+            }
+        }
+
         if (Render::renderMode != Render::BOTH_SCREENS)
             drawBlackBars(BOTTOM_SCREEN_WIDTH, SCREEN_HEIGHT);
     }
@@ -285,12 +420,6 @@ void Render::renderSprites() {
     C2D_Flush();
     C3D_FrameEnd(0);
     Image::FlushImages();
-    // gspWaitForVBlank();
-    endTime = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double, std::milli> duration = endTime - startTime;
-    // int FPS = 1000.0 / std::round(duration.count());
-    // std::cout << "\x1b[8;0HCPU: " <<C3D_GetProcessingTime()*6.0f<<"\nGPU: "<< C3D_GetDrawingTime()*6.0f << "\nCmdBuf: " <<C3D_GetCmdBufUsage()*100.0f << "\nFPS: " << FPS <<  std::endl;
-    startTime = std::chrono::high_resolution_clock::now();
     osSetSpeedupEnable(true);
 }
 
@@ -345,193 +474,18 @@ void Render::renderVisibleVariables() {
     }
 }
 
-void LoadingScreen::renderLoadingScreen() {
-#ifdef ENABLE_BUBBLES
-    C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
-    C2D_TargetClear(topScreen, clrScratchBlue);
-    C2D_SceneBegin(topScreen);
-
-    // if(text != nullptr){
-    // text->render();
-    // }
-    for (squareObject &square : squares) {
-        square.y -= square.size * 0.1;
-        if (square.x > 400 + square.size) square.x = 0 - square.size;
-        if (square.y < 0 - square.size) square.y = 240 + square.size;
-        C2D_DrawRectSolid(square.x, square.y, 1, square.size, square.size, C2D_Color32(255, 255, 255, 75));
-    }
-
-    C3D_FrameEnd(0);
-#endif
-}
-
-void LoadingScreen::init() {
-#ifdef ENABLE_BUBBLES
-    // text = new TextObject("Loading...",200,120);
-    createSquares(20);
-#endif
-}
-
-void LoadingScreen::cleanup() {
-#ifdef ENABLE_BUBBLES
-    // if(text && text != nullptr)
-    // delete text;
-    squares.clear();
-
-    C2D_Flush();
-    C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
-    C2D_TargetClear(topScreen, clrBlack);
-    C2D_SceneBegin(topScreen);
-
-    C2D_TargetClear(bottomScreen, clrBlack);
-    C2D_SceneBegin(bottomScreen);
-
-    C3D_FrameEnd(0);
-    gspWaitForVBlank();
-#endif
-}
-
-SpriteSheetObject *logo;
-
-void MainMenu::init() {
-
-    std::vector<std::string> projectFiles = Unzip::getProjectFiles(".");
-
-    int yPosition = 120;
-    for (std::string &file : projectFiles) {
-        TextObject *text = createTextObject(file, 0, yPosition);
-        text->setColor(C2D_Color32f(0, 0, 0, 1));
-        text->y -= text->getSize()[1] / 2;
-        if (text->getSize()[0] > BOTTOM_SCREEN_WIDTH) {
-            float scale = (float)BOTTOM_SCREEN_WIDTH / (text->getSize()[0] * 1.15);
-            text->setScale(scale);
-        }
-        projectTexts.push_back(text);
-        yPosition += 50;
-    }
-
-    if (projectFiles.size() == 0) {
-        errorTextInfo = createTextObject("No Scratch projects found!\n Go download a Scratch project and put it\n in the 3ds folder of your SD card!\nPress Start to exit.",
-                                         BOTTOM_SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
-        errorTextInfo->setScale(0.6);
-        hasProjects = false;
-    } else {
-        selectedText = projectTexts.front();
-        hasProjects = true;
-    }
-
-    logo = new SpriteSheetObject("romfs:/gfx/menuElements.t3x", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
-    infoText = createTextObject("Runtime by NateXS", 340, 225);
-    infoText->setScale(0.5);
-}
-void MainMenu::render() {
-
-    if (hasProjects) {
-
-        hidScanInput();
-        u32 kJustPressed = hidKeysDown();
-
-        if (kJustPressed & (KEY_DDOWN | KEY_CPAD_DOWN)) {
-            if (selectedTextIndex < (int)projectTexts.size() - 1) {
-                selectedTextIndex++;
-                selectedText = projectTexts[selectedTextIndex];
-            }
-        }
-        if (kJustPressed & (KEY_DUP | KEY_CPAD_UP)) {
-            if (selectedTextIndex > 0) {
-                selectedTextIndex--;
-                selectedText = projectTexts[selectedTextIndex];
-            }
-        }
-        cameraX = BOTTOM_SCREEN_WIDTH / 2;
-        cameraY = selectedText->y;
-
-        if (kJustPressed & KEY_A) {
-            Unzip::filePath = selectedText->getText();
-        }
-    } else {
-        hidScanInput();
-        u32 kJustPressed = hidKeysDown();
-        if (kJustPressed & (KEY_DDOWN | KEY_START)) {
-            shouldExit = true;
-        }
-    }
-
-    C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
-    C2D_TargetClear(topScreen, clrScratchBlue);
-    C2D_SceneBegin(topScreen);
-
-    auto now = std::chrono::steady_clock::now();
-    std::chrono::duration<float> elapsed = now - logoStartTime;
-
-    float timeSeconds = elapsed.count();
-    float bobbingOffset = std::sin(timeSeconds * 2.0f) * 5.0f; // speed * amplitude
-
-    logo->render(logo->x, (SCREEN_HEIGHT / 2) + bobbingOffset);
-    infoText->render(infoText->x, infoText->y);
-
-    C2D_TargetClear(bottomScreen, clrScratchBlue);
-    C2D_SceneBegin(bottomScreen);
-
-    for (TextObject *text : projectTexts) {
-        if (text == nullptr || text->y > 300) continue;
-
-        if (selectedText == text)
-            text->setColor(C2D_Color32(237, 223, 214, 255));
-        else
-            text->setColor(C2D_Color32(0, 0, 0, 255));
-
-        text->render(text->x + cameraX, text->y - (cameraY - (SCREEN_HEIGHT / 2)));
-    }
-
-    if (errorTextInfo != nullptr) {
-        errorTextInfo->render(errorTextInfo->x, errorTextInfo->y);
-    }
-
-    // C2D_Flush();
-    C3D_FrameEnd(0);
-    gspWaitForVBlank();
-}
-void MainMenu::cleanup() {
-    for (TextObject *text : projectTexts) {
-        delete text;
-    }
-    projectTexts.clear();
-
-    delete logo;
-    delete infoText;
-    selectedText = nullptr;
-    if (errorTextInfo) delete errorTextInfo;
-
-    C2D_Flush();
-    C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
-    C2D_TargetClear(topScreen, clrScratchBlue);
-    C2D_SceneBegin(topScreen);
-
-    C2D_TargetClear(bottomScreen, clrScratchBlue);
-    C2D_SceneBegin(bottomScreen);
-
-    C3D_FrameEnd(0);
-    gspWaitForVBlank();
-}
-
 void Render::deInit() {
+#ifdef ENABLE_CLOUDVARS
+    socExit();
+#endif
 
+    Image::cleanupImages();
+    SoundPlayer::deinit();
     C2D_Fini();
     C3D_Fini();
-    for (auto &[id, data] : imageC2Ds) {
-        if (data.image.tex) {
-            C3D_TexDelete(data.image.tex);
-            free(data.image.tex);
-        }
-
-        if (data.image.subtex) {
-            free((Tex3DS_SubTexture *)data.image.subtex);
-        }
-    }
-    Image::imageRGBAS.clear();
-    SoundPlayer::cleanupAudio();
+#ifdef ENABLE_AUDIO
     SDL_Quit();
+#endif
     romfsExit();
     gfxExit();
 }

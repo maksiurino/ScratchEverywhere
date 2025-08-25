@@ -19,8 +19,8 @@ enum class BlockResult {
 
 class BlockExecutor {
   private:
-    std::unordered_map<Block::opCode, std::function<BlockResult(Block &, Sprite *, bool *, bool)>> handlers;
-    std::unordered_map<Block::opCode, std::function<Value(Block &, Sprite *)>> valueHandlers;
+    std::unordered_map<std::string, std::function<BlockResult(Block &, Sprite *, bool *, bool)>> handlers;
+    std::unordered_map<std::string, std::function<Value(Block &, Sprite *)>> valueHandlers;
     // std::unordered_map<Block::opCode, std::function<Value(Block&,Sprite*)>> conditionBlockHandlers;
 
   public:
@@ -42,7 +42,7 @@ class BlockExecutor {
      * Goes through every `block` in every `sprite` to find and run a block with the specified `opCode`.
      * @param opCodeToFind Name of the block to run
      */
-    static std::vector<Block *> runAllBlocksByOpcode(Block::opCode opcodeToFind);
+    static std::vector<Block *> runAllBlocksByOpcode(std::string opcodeToFind);
 
     /**
      * Goes through every currently active repeat block in every `sprite` and runs it once.
@@ -110,6 +110,15 @@ class BlockExecutor {
      */
     static void setVariableValue(const std::string &variableId, const Value &newValue, Sprite *sprite);
 
+#ifdef ENABLE_CLOUDVARS
+    /**
+     * Called when a cloud variable is changed by another user. Updates that variable
+     * @param name The name of the updated variable
+     * @param value The new value of the variable
+     */
+    static void handleCloudVariableChange(const std::string &name, const std::string &value);
+#endif
+
     /**
      * Adds a block to the repeat queue, so it can be run next frame.
      * @param sprite Pointer to the Sprite variable
@@ -127,7 +136,7 @@ class BlockExecutor {
     static bool hasActiveRepeats(Sprite *sprite, std::string blockChainID);
 
     // For the `Timer` Scratch block.
-    static std::chrono::_V2::system_clock::time_point timer;
+    static Timer timer;
 
   private:
     /**

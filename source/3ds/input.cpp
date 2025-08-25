@@ -8,11 +8,32 @@
 #define SCREEN_HEIGHT 240
 
 std::vector<std::string> Input::inputButtons;
+std::map<std::string, std::string> Input::inputControls;
 Input::Mouse Input::mousePointer;
+Sprite *Input::draggingSprite = nullptr;
 int Input::keyHeldFrames = 0;
 static int mouseHeldFrames = 0;
 static u16 oldTouchPx = 0;
 static u16 oldTouchPy = 0;
+static touchPosition touch;
+
+#ifdef ENABLE_CLOUDVARS
+extern std::string cloudUsername;
+extern bool cloudProject;
+#endif
+
+std::vector<int> Input::getTouchPosition() {
+    std::vector<int> pos;
+
+    pos.push_back(touch.px);
+    pos.push_back(touch.py);
+    if (Render::renderMode != Render::TOP_SCREEN_ONLY) {
+        if (touch.px != 0 || touch.py != 0) {
+            mousePointer.isPressed = true;
+        } else mousePointer.isPressed = false;
+    }
+    return pos;
+}
 
 void Input::getInput() {
     inputButtons.clear();
@@ -21,13 +42,11 @@ void Input::getInput() {
     hidScanInput();
     u32 kDown = hidKeysHeld();
 
-    touchPosition touch;
-
-    // Read the touch screen coordinates
     hidTouchRead(&touch);
+    std::vector<int> touchPos = getTouchPosition();
 
     // if the touch screen is being touched
-    if (touch.px != 0 || touch.py != 0) {
+    if (touchPos[0] != 0 || touchPos[1] != 0) {
         mouseHeldFrames += 1;
     } else {
         if (Render::renderMode == Render::TOP_SCREEN_ONLY && (mouseHeldFrames > 0 && mouseHeldFrames < 4)) {
@@ -40,102 +59,104 @@ void Input::getInput() {
         keyHeldFrames += 1;
         inputButtons.push_back("any");
         if (kDown & KEY_A) {
-            inputButtons.push_back("a");
+            Input::buttonPress("A");
         }
         if (kDown & KEY_B) {
-            inputButtons.push_back("b");
+            Input::buttonPress("B");
         }
         if (kDown & KEY_X) {
-            inputButtons.push_back("x");
+            Input::buttonPress("X");
         }
         if (kDown & KEY_Y) {
-            inputButtons.push_back("y");
+            Input::buttonPress("Y");
         }
         if (kDown & KEY_SELECT) {
-            inputButtons.push_back("0");
+            Input::buttonPress("back");
         }
         if (kDown & KEY_START) {
-            inputButtons.push_back("1");
+            Input::buttonPress("start");
         }
         if (kDown & KEY_DUP) {
-            inputButtons.push_back("u");
+            Input::buttonPress("dpadUp");
         }
         if (kDown & KEY_DDOWN) {
-            inputButtons.push_back("h");
+            Input::buttonPress("dpadDown");
         }
         if (kDown & KEY_DLEFT) {
-            inputButtons.push_back("g");
+            Input::buttonPress("dpadLeft");
         }
         if (kDown & KEY_DRIGHT) {
-            inputButtons.push_back("j");
+            Input::buttonPress("dpadRight");
         }
         if (kDown & KEY_L) {
-            inputButtons.push_back("l");
+            Input::buttonPress("shoulderL");
         }
         if (kDown & KEY_R) {
-            inputButtons.push_back("r");
+            Input::buttonPress("shoulderR");
         }
         if (kDown & KEY_ZL) {
-            inputButtons.push_back("z");
+            Input::buttonPress("LT");
         }
         if (kDown & KEY_ZR) {
-            inputButtons.push_back("f");
+            Input::buttonPress("RT");
         }
         if (kDown & KEY_CPAD_UP) {
-            inputButtons.push_back("up arrow");
+            Input::buttonPress("LeftStickUp");
         }
         if (kDown & KEY_CPAD_DOWN) {
-            inputButtons.push_back("down arrow");
+            Input::buttonPress("LeftStickDown");
         }
         if (kDown & KEY_CPAD_LEFT) {
-            inputButtons.push_back("left arrow");
+            Input::buttonPress("LeftStickLeft");
         }
         if (kDown & KEY_CPAD_RIGHT) {
-            inputButtons.push_back("right arrow");
+            Input::buttonPress("LeftStickRight");
         }
         if (kDown & KEY_CSTICK_UP) {
-            inputButtons.push_back("2");
+            Input::buttonPress("RightStickUp");
         }
         if (kDown & KEY_CSTICK_DOWN) {
-            inputButtons.push_back("3");
+            Input::buttonPress("RightStickDown");
         }
         if (kDown & KEY_CSTICK_LEFT) {
-            inputButtons.push_back("4");
+            Input::buttonPress("RightStickLeft");
         }
         if (kDown & KEY_CSTICK_RIGHT) {
-            inputButtons.push_back("5");
+            Input::buttonPress("RightStickRight");
         }
         if (kDown & KEY_TOUCH) {
 
             // normal touch screen if both screens or bottom screen only
             if (Render::renderMode != Render::TOP_SCREEN_ONLY) {
                 mousePointer.isPressed = true;
-                mousePointer.x = touch.px - (BOTTOM_SCREEN_WIDTH / 2);
+                mousePointer.x = touchPos[0] - (BOTTOM_SCREEN_WIDTH / 2);
                 if (Render::renderMode == Render::BOTH_SCREENS)
-                    mousePointer.y = (-touch.py + (SCREEN_HEIGHT)) - SCREEN_HEIGHT;
+                    mousePointer.y = (-touchPos[1] + (SCREEN_HEIGHT)) - SCREEN_HEIGHT;
                 else if (Render::renderMode == Render::BOTTOM_SCREEN_ONLY)
-                    mousePointer.y = (-touch.py + (SCREEN_HEIGHT)) - SCREEN_HEIGHT / 2;
+                    mousePointer.y = (-touchPos[1] + (SCREEN_HEIGHT)) - SCREEN_HEIGHT / 2;
             }
 
             // trackpad movement if top screen only
             if (Render::renderMode == Render::TOP_SCREEN_ONLY) {
                 if (mouseHeldFrames == 1) {
-                    oldTouchPx = touch.px;
-                    oldTouchPy = touch.py;
+                    oldTouchPx = touchPos[0];
+                    oldTouchPy = touchPos[1];
                 }
-                mousePointer.x += touch.px - oldTouchPx;
-                mousePointer.y -= touch.py - oldTouchPy;
+                mousePointer.x += touchPos[0] - oldTouchPx;
+                mousePointer.y -= touchPos[1] - oldTouchPy;
                 mousePointer.isMoving = true;
             }
         }
         if (keyHeldFrames == 1 || keyHeldFrames > 13)
-            BlockExecutor::runAllBlocksByOpcode(Block::EVENT_WHEN_KEY_PRESSED);
+            BlockExecutor::runAllBlocksByOpcode("event_whenkeypressed");
 
     } else {
         keyHeldFrames = 0;
     }
-    oldTouchPx = touch.px;
-    oldTouchPy = touch.py;
+    oldTouchPx = touchPos[0];
+    oldTouchPy = touchPos[1];
+
+    doSpriteClicking();
 }
 
 /**
@@ -143,6 +164,10 @@ void Input::getInput() {
  * @return String of the 3DS's nickname
  */
 std::string Input::getUsername() {
+#ifdef ENABLE_CLOUDVARS
+    if (cloudProject) return cloudUsername;
+#endif
+
     const u16 *block = (const u16 *)malloc(0x1C);
 
     cfguInit();

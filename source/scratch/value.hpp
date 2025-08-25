@@ -1,5 +1,6 @@
 #pragma once
 #include "math.hpp"
+#include "os.hpp"
 #include <cmath>
 #include <iostream>
 #include <nlohmann/json.hpp>
@@ -8,6 +9,7 @@
 enum class ValueType {
     INTEGER,
     DOUBLE,
+    BOOLEAN,
     STRING
 };
 
@@ -30,6 +32,10 @@ class Value {
 
     explicit Value(double val) : type(ValueType::DOUBLE), doubleValue(val) {}
 
+    explicit Value(bool val) : type(ValueType::BOOLEAN) {
+        stringValue = new std::string(val ? "true" : "false");
+    }
+
     explicit Value(const std::string &val) : type(ValueType::STRING) {
         stringValue = new std::string(val);
     }
@@ -45,12 +51,14 @@ class Value {
         case ValueType::STRING:
             stringValue = new std::string(*other.stringValue);
             break;
+        case ValueType::BOOLEAN:
+            stringValue = new std::string(*other.stringValue);
         }
     }
     // Assignment operator
     Value &operator=(const Value &other) {
         if (this != &other) {
-            if (type == ValueType::STRING) {
+            if (type == ValueType::STRING || type == ValueType::BOOLEAN) {
                 delete stringValue;
             }
             // copy new value
@@ -65,13 +73,16 @@ class Value {
             case ValueType::STRING:
                 stringValue = new std::string(*other.stringValue);
                 break;
+            case ValueType::BOOLEAN:
+                stringValue = new std::string(*other.stringValue);
+                break;
             }
         }
         return *this;
     }
     // destructor
     ~Value() {
-        if (type == ValueType::STRING) {
+        if (type == ValueType::STRING || type == ValueType::BOOLEAN) {
             delete stringValue;
         }
     }
@@ -79,8 +90,10 @@ class Value {
     bool isInteger() const { return type == ValueType::INTEGER; }
     bool isDouble() const { return type == ValueType::DOUBLE; }
     bool isString() const { return type == ValueType::STRING; }
+    bool isBoolean() const { return type == ValueType::BOOLEAN; }
     bool isNumeric() const {
-        return type == ValueType::INTEGER || type == ValueType::DOUBLE ||
+        return type == ValueType::INTEGER || type == ValueType::DOUBLE || type == ValueType::BOOLEAN ||
+               (type == ValueType::STRING && (*stringValue == "Infinity" || *stringValue == "-Infinity")) ||
                (type == ValueType::STRING && Math::isNumber(*stringValue));
     }
 
@@ -91,7 +104,15 @@ class Value {
         case ValueType::DOUBLE:
             return doubleValue;
         case ValueType::STRING:
-            return Math::isNumber(*stringValue) ? std::stod(*stringValue) : 0.0;
+            if (*stringValue == "Infinity") return std::numeric_limits<double>::max();
+            if (*stringValue == "-Infinity") return -std::numeric_limits<double>::max();
+            return Math::isNumber(*stringValue) ? ((*stringValue)[0] == '0' ? ((*stringValue)[1] == 'x' ? std::stoi((*stringValue).substr(2, (*stringValue).size() - 2), 0, 16) : (*stringValue)[1] == 'b' ? std::stoi((*stringValue).substr(2, (*stringValue).size() - 2), 0, 2)
+                                                                                                                                                                              : (*stringValue)[1] == 'o'   ? std::stoi((*stringValue).substr(2, (*stringValue).size() - 2), 0, 8)
+                                                                                                                                                                                                           : std::stod(*stringValue))
+                                                                            : std::stod(*stringValue))
+                                                : 0.0; // clang-format really cooked here...
+        case ValueType::BOOLEAN:
+            return *stringValue == "true" ? 1.0 : 0.0;
         }
         return 0.0;
     }
@@ -103,10 +124,30 @@ class Value {
         case ValueType::DOUBLE:
             return static_cast<int>(std::round(doubleValue));
         case ValueType::STRING:
+            if (*stringValue == "Infinity") return std::numeric_limits<int>::max();
+            if (*stringValue == "-Infinity") return -std::numeric_limits<int>::max();
             if (Math::isNumber(*stringValue)) {
-                double d = std::stod(*stringValue);
+                double d;
+                if ((*stringValue)[0] == '0') {
+                    switch ((*stringValue)[1]) {
+                    case 'x':
+                        d = std::stoi((*stringValue).substr(2, (*stringValue).size() - 2), 0, 16);
+                        break;
+                    case 'b':
+                        d = std::stoi((*stringValue).substr(2, (*stringValue).size() - 2), 0, 2);
+                        break;
+                    case 'o':
+                        d = std::stoi((*stringValue).substr(2, (*stringValue).size() - 2), 0, 8);
+                        break;
+                    default:
+                        d = std::stod(*stringValue);
+                        break;
+                    }
+                } else d = std::stod(*stringValue);
                 return static_cast<int>(std::round(d));
             }
+        case ValueType::BOOLEAN:
+            return *stringValue == "true" ? 1 : 0;
         }
         return 0;
     }
@@ -123,6 +164,8 @@ class Value {
             return std::to_string(doubleValue);
         }
         case ValueType::STRING:
+            return *stringValue;
+        case ValueType::BOOLEAN:
             return *stringValue;
         }
         return "";
@@ -186,6 +229,8 @@ class Value {
                 return doubleValue == other.doubleValue;
             case ValueType::STRING:
                 return *stringValue == *other.stringValue;
+            case ValueType::BOOLEAN:
+                return *stringValue == *other.stringValue;
             }
         }
         // Different types - compare as strings (Scratch behavior)
@@ -207,7 +252,7 @@ class Value {
     }
 
     static Value fromJson(const nlohmann::json &jsonVal) {
-        if (jsonVal.is_null()) return Value(0);
+        if (jsonVal.is_null()) return Value();
 
         if (jsonVal.is_number_integer()) {
             return Value(jsonVal.get<int>());
@@ -216,8 +261,35 @@ class Value {
         } else if (jsonVal.is_string()) {
             std::string strVal = jsonVal.get<std::string>();
 
+            if (strVal == "Infinity" || strVal == "-Infinity") return Value(strVal);
+
             if (Math::isNumber(strVal)) {
-                double numVal = std::stod(strVal);
+                double numVal;
+                try {
+                    if (strVal[0] == '0') {
+                        switch (strVal[1]) {
+                        case 'x':
+                            numVal = std::stoi(strVal.substr(2, strVal.size() - 2), 0, 16);
+                            break;
+                        case 'b':
+                            numVal = std::stoi(strVal.substr(2, strVal.size() - 2), 0, 2);
+                            break;
+                        case 'o':
+                            numVal = std::stoi(strVal.substr(2, strVal.size() - 2), 0, 8);
+                            break;
+                        default:
+                            numVal = std::stod(strVal);
+                            break;
+                        }
+                    } else numVal = std::stod(strVal);
+                } catch (const std::invalid_argument &e) {
+                    Log::logError("Invalid number format: " + strVal);
+                    return Value(0);
+                } catch (const std::out_of_range &e) {
+                    Log::logError("Number out of range: " + strVal);
+                    return Value(0);
+                }
+
                 if (std::floor(numVal) == numVal) {
                     return Value(static_cast<int>(numVal));
                 }
@@ -225,7 +297,7 @@ class Value {
             }
             return Value(strVal);
         } else if (jsonVal.is_boolean()) {
-            return Value(jsonVal.get<bool>() ? 1 : 0);
+            return Value(Math::removeQuotations(jsonVal.dump()));
         } else if (jsonVal.is_array()) {
             if (jsonVal.size() > 1) {
                 return fromJson(jsonVal[1]);
@@ -235,5 +307,8 @@ class Value {
         return Value(0);
     }
 
-    ValueType getType() const { return type; }
+    ValueType
+    getType() const {
+        return type;
+    }
 };

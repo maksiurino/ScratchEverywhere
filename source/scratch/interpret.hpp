@@ -34,6 +34,9 @@ extern std::string answer;
 
 class Scratch {
   public:
+    static bool startScratchProject();
+    static void cleanupScratchProject();
+
     static Value getInputValue(Block &block, const std::string &inputName, Sprite *sprite);
 
     static void fenceSpriteWithinBounds(Sprite *sprite);
@@ -42,6 +45,8 @@ class Scratch {
     static int projectHeight;
     static int FPS;
     static bool fencing;
+    static bool miscellaneousLimits;
+    static bool shouldStop;
 };
 
 /**
@@ -50,6 +55,12 @@ class Scratch {
  * @return Each point stored in a `std::pair`, where `[0]` is X, `[1]` is Y.
  */
 std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite);
+
+bool isColliding(std::string collisionType, Sprite *currentSprite, Sprite *targetSprite = nullptr, std::string targetName = "");
+
+bool isSeparated(const std::vector<std::pair<double, double>> &poly1,
+                 const std::vector<std::pair<double, double>> &poly2,
+                 double axisX, double axisY);
 
 /**
  * Loads every Sprite from the Scratch's project.json file.
