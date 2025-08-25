@@ -4,7 +4,7 @@
 C2D_Image penImage;
 C3D_RenderTarget *penRenderTarget;
 #elif defined(SDL_BUILD)
-
+SDL_Texture *penTexture;
 #else
 #error Unsupported Platform.
 #endif

@@ -9,6 +9,8 @@ extern C2D_Image penImage;
 extern C3D_RenderTarget *penRenderTarget;
 #elif defined(SDL_BUILD)
 #include <SDL2/SDL.h>
+
+extern SDL_Texture *penTexture;
 #else
 #error Unsupported Platform.
 #endif
