@@ -1,6 +1,18 @@
 #pragma once
 #include "../blockExecutor.hpp"
 
+#ifdef __3DS__
+#include <citro2d.h>
+#include <citro3d.h>
+
+extern C2D_Image penImage;
+extern C3D_RenderTarget *penRenderTarget;
+#elif defined(SDL_BUILD)
+#include <SDL2/SDL.h>
+#else
+#error Unsupported Platform.
+#endif
+
 class PenBlocks {
   public:
     static BlockResult PenDown(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);

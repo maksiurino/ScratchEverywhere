@@ -1,5 +1,14 @@
 #include "pen.hpp"
 
+#ifdef __3DS__
+C2D_Image penImage;
+C3D_RenderTarget *penRenderTarget;
+#elif defined(SDL_BUILD)
+
+#else
+#error Unsupported Platform.
+#endif
+
 BlockResult PenBlocks::PenDown(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     return BlockResult::CONTINUE;
 }
