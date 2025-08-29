@@ -31,7 +31,6 @@ BlockResult PenBlocks::ChangePenOptionBy(Block &block, Sprite *sprite, bool *wit
 
 BlockResult PenBlocks::SetPenColorTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     sprite->penData.color = Scratch::getInputValue(block, "COLOR", sprite).asColor();
-    Log::log("Set pen color to: " + Value(sprite->penData.color).asString());
 
     return BlockResult::CONTINUE;
 }
