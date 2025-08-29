@@ -186,18 +186,21 @@ class Value {
             return *stringValue;
         case ValueType::BOOLEAN:
             return *stringValue;
-        case ValueType::COLOR:
+        case ValueType::COLOR: {
             const ColorRGB rgb = HSB2RGB(colorValue);
-            std::stringstream rStream;
-            std::stringstream gStream;
-            std::stringstream bStream;
-            if (rgb.r < 0x10) rStream << '0';
-            if (rgb.g < 0x10) gStream << '0';
-            if (rgb.b < 0x10) bStream << '0';
-            rStream << std::hex << rgb.r;
-            gStream << std::hex << rgb.g;
-            bStream << std::hex << rgb.b;
-            return "#" + rStream.str() + gStream.str() + bStream.str();
+            const char hex_chars[] = "0123456789abcdef";
+            const unsigned char r = static_cast<unsigned char>(rgb.r);
+            const unsigned char g = static_cast<unsigned char>(rgb.g);
+            const unsigned char b = static_cast<unsigned char>(rgb.b);
+            std::string hex_str = "#";
+            hex_str += hex_chars[r >> 4];
+            hex_str += hex_chars[r & 0x0F];
+            hex_str += hex_chars[g >> 4];
+            hex_str += hex_chars[g & 0x0F];
+            hex_str += hex_chars[b >> 4];
+            hex_str += hex_chars[b & 0x0F];
+            return hex_str;
+        }
         }
         return "";
     }
