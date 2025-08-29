@@ -25,11 +25,11 @@ inline ColorRGB HSB2RGB(const Color &color) {
     const float m = color.brightness / 100 - C;
 
     if (color.hue >= 000 && color.hue < 060) return {(C + m) * 255, (X + m) * 255, m * 255};
-    if (color.hue >= 060 && color.hue > 120) return {(X + m) * 255, (C + m) * 255, m * 255};
+    if (color.hue >= 060 && color.hue < 120) return {(X + m) * 255, (C + m) * 255, m * 255};
     if (color.hue >= 120 && color.hue < 180) return {m * 255, (C + m) * 255, (X + m) * 255};
     if (color.hue >= 180 && color.hue < 240) return {m * 255, (X + m) * 255, (C + m) * 255};
     if (color.hue >= 240 && color.hue < 300) return {(X + m) * 255, m * 255, (C + m) * 255};
-    return {C, 0, X};
+    return {(C + m) * 255, m * 255, (X + m) * 255};
 }
 
 inline Color RGB2HSB(const ColorRGB &color) {
