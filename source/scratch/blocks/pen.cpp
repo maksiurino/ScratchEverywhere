@@ -10,14 +10,14 @@ SDL_Texture *penTexture;
 #endif
 
 BlockResult PenBlocks::PenDown(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    sprite->penData.down = true;
+
     return BlockResult::CONTINUE;
 }
 
 BlockResult PenBlocks::PenUp(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    return BlockResult::CONTINUE;
-}
+    sprite->penData.down = false;
 
-BlockResult PenBlocks::EraseAll(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     return BlockResult::CONTINUE;
 }
 
@@ -29,18 +29,29 @@ BlockResult PenBlocks::ChangePenOptionBy(Block &block, Sprite *sprite, bool *wit
     return BlockResult::CONTINUE;
 }
 
-BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    return BlockResult::CONTINUE;
-}
-
 BlockResult PenBlocks::SetPenColorTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    sprite->penData.color = Scratch::getInputValue(block, "COLOR", sprite).asColor();
+    Log::log("Set pen color to: " + Value(sprite->penData.color).asString());
+
     return BlockResult::CONTINUE;
 }
 
 BlockResult PenBlocks::SetPenSizeTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    sprite->penData.size = Scratch::getInputValue(block, "SIZE", sprite).asDouble();
+
     return BlockResult::CONTINUE;
 }
 
 BlockResult PenBlocks::ChangePenSizeBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    sprite->penData.size += Scratch::getInputValue(block, "SIZE", sprite).asDouble();
+
+    return BlockResult::CONTINUE;
+}
+
+BlockResult PenBlocks::EraseAll(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    return BlockResult::CONTINUE;
+}
+
+BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     return BlockResult::CONTINUE;
 }
