@@ -176,6 +176,7 @@ class Sprite {
         bool down;
         double size;
         Color color;
+        double transparency;
     } penData;
 
     std::unordered_map<std::string, Variable> variables;
