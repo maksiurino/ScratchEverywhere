@@ -165,6 +165,7 @@ postAccount:
     penTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 480, 360); // TODO: Support other resolutions.
 
     // Clear the texture
+    SDL_SetTextureBlendMode(penTexture, SDL_BLENDMODE_BLEND);
     SDL_SetRenderTarget(renderer, penTexture);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
     SDL_RenderClear(renderer);
