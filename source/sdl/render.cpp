@@ -164,6 +164,12 @@ postAccount:
 
     penTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 480, 360); // TODO: Support other resolutions.
 
+    // Clear the texture
+    SDL_SetRenderTarget(renderer, penTexture);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+    SDL_RenderClear(renderer);
+    SDL_SetRenderTarget(renderer, NULL);
+
     if (SDL_NumJoysticks() > 0) controller = SDL_GameControllerOpen(0);
 
     return true;
@@ -389,6 +395,8 @@ void Render::renderSprites() {
 
         //     SDL_RenderFillRect(renderer, &debugPointRect);
         // }
+
+        if (currentSprite->isStage) renderPenLayer();
     }
 
     drawBlackBars(windowWidth, windowHeight);
@@ -444,6 +452,22 @@ void Render::renderVisibleVariables() {
             }
         }
     }
+}
+
+void Render::renderPenLayer() {
+    SDL_Rect renderRect = {0, 0, 0, 0};
+
+    if (static_cast<float>(windowWidth) / windowHeight > static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight) {
+        renderRect.x = std::ceil((windowWidth - Scratch::projectWidth * (static_cast<float>(windowHeight) / Scratch::projectHeight)) / 2.0f);
+        renderRect.w = windowWidth - renderRect.x * 2;
+        renderRect.h = windowHeight;
+    } else {
+        renderRect.y = std::ceil((windowHeight - Scratch::projectHeight * (static_cast<float>(windowWidth) / Scratch::projectWidth)) / 2.0f);
+        renderRect.h = windowHeight - renderRect.y * 2;
+        renderRect.w = windowWidth;
+    }
+
+    SDL_RenderCopy(renderer, penTexture, NULL, &renderRect);
 }
 
 bool Render::appShouldRun() {
