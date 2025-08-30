@@ -163,8 +163,6 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
 
     const double scale = std::min(static_cast<double>(windowWidth) / Scratch::projectWidth, static_cast<double>(windowHeight) / Scratch::projectHeight);
 
-    int oldRenderRectW = image->renderRect.w;
-    int oldRenderRectH = image->renderRect.h;
     image->renderRect.w /= scale;
     image->renderRect.h /= scale;
 
@@ -177,8 +175,8 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
 
     SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect, Math::radiansToDegrees(renderRotation), &center, flip);
 
-    image->renderRect.w = oldRenderRectW;
-    image->renderRect.h = oldRenderRectH;
+    image->renderRect.w *= scale;
+    image->renderRect.h *= scale;
 
     SDL_SetRenderTarget(renderer, NULL);
 
