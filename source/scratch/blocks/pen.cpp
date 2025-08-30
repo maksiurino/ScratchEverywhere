@@ -161,8 +161,8 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
     const double offsetX = rotationCenterX * (sprite->size * 0.01);
     const double offsetY = rotationCenterY * (sprite->size * 0.01);
 
-    image->renderRect.x = (sprite->xPosition + (windowWidth / 2) - (image->renderRect.w / 2)) - offsetX * std::cos(rotation) + offsetY * std::sin(renderRotation);
-    image->renderRect.y = (-sprite->yPosition + (windowHeight / 2) - (image->renderRect.h / 2)) - offsetX * std::sin(rotation) - offsetY * std::cos(renderRotation);
+    image->renderRect.x = (sprite->xPosition + 240 - (image->renderRect.w / 2)) - offsetX * std::cos(rotation) + offsetY * std::sin(renderRotation);
+    image->renderRect.y = (-sprite->yPosition + 180 - (image->renderRect.h / 2)) - offsetX * std::sin(rotation) - offsetY * std::cos(renderRotation);
     const SDL_Point center = {image->renderRect.w / 2, image->renderRect.h / 2};
 
     // ghost effect
