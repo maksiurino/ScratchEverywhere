@@ -4,6 +4,8 @@
 C2D_Image penImage;
 C3D_RenderTarget *penRenderTarget;
 #elif defined(SDL_BUILD)
+#include "../../sdl/render.hpp"
+
 SDL_Texture *penTexture;
 #else
 #error Unsupported Platform.
@@ -108,6 +110,82 @@ BlockResult PenBlocks::ChangePenSizeBy(Block &block, Sprite *sprite, bool *witho
     return BlockResult::CONTINUE;
 }
 
+#ifdef SDL_BUILD
+BlockResult PenBlocks::EraseAll(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    SDL_SetRenderTarget(renderer, penTexture);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+    SDL_RenderClear(renderer);
+    SDL_SetRenderTarget(renderer, NULL);
+
+    return BlockResult::CONTINUE;
+}
+
+BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    if (!sprite->visible) return BlockResult::CONTINUE;
+
+    const auto &imgFind = images.find(sprite->costumes[sprite->currentCostume].id);
+    if (imgFind == images.end()) {
+        Log::logWarning("Invalid Image for Stamp");
+        return BlockResult::CONTINUE;
+    }
+
+    SDL_SetRenderTarget(renderer, penTexture);
+
+    const double scale = std::min(static_cast<double>(windowWidth) / Scratch::projectWidth, static_cast<double>(windowHeight) / Scratch::projectHeight);
+
+    // IDK if these are needed
+    sprite->rotationCenterX = sprite->costumes[sprite->currentCostume].rotationCenterX;
+    sprite->rotationCenterY = sprite->costumes[sprite->currentCostume].rotationCenterY;
+
+    // TODO: remove duplicate code (maybe make a Render::drawSprite function.)
+    SDL_Image *image = imgFind->second;
+    image->freeTimer = image->maxFreeTime;
+    SDL_RendererFlip flip = SDL_FLIP_NONE;
+
+    image->setScale((sprite->size * 0.01) * scale / 2.0f);
+    sprite->spriteWidth = image->textureRect.w / 2;
+    sprite->spriteHeight = image->textureRect.h / 2;
+    if (image->isSVG) {
+        image->setScale(image->scale * 2);
+        sprite->spriteWidth *= 2;
+        sprite->spriteHeight *= 2;
+    }
+    const double rotation = Math::degreesToRadians(sprite->rotation - 90.0f);
+    double renderRotation = rotation;
+
+    if (sprite->rotationStyle == sprite->LEFT_RIGHT) {
+        if (std::cos(rotation) < 0) {
+            flip = SDL_FLIP_HORIZONTAL;
+        }
+        renderRotation = 0;
+    }
+    if (sprite->rotationStyle == sprite->NONE) {
+        renderRotation = 0;
+    }
+
+    double rotationCenterX = ((((sprite->rotationCenterX - sprite->spriteWidth)) / 2) * scale);
+    double rotationCenterY = ((((sprite->rotationCenterY - sprite->spriteHeight)) / 2) * scale);
+
+    const double offsetX = rotationCenterX * (sprite->size * 0.01);
+    const double offsetY = rotationCenterY * (sprite->size * 0.01);
+
+    image->renderRect.x = ((sprite->xPosition * scale) + (windowWidth / 2) - (image->renderRect.w / 2)) - offsetX * std::cos(rotation) + offsetY * std::sin(renderRotation);
+    image->renderRect.y = ((sprite->yPosition * -scale) + (windowHeight / 2) - (image->renderRect.h / 2)) - offsetX * std::sin(rotation) - offsetY * std::cos(renderRotation);
+    SDL_Point center = {image->renderRect.w / 2, image->renderRect.h / 2};
+
+    // ghost effect
+    float ghost = std::clamp(sprite->ghostEffect, 0.0f, 100.0f);
+    Uint8 alpha = static_cast<Uint8>(255 * (1.0f - ghost / 100.0f));
+    SDL_SetTextureAlphaMod(image->spriteTexture, alpha);
+
+    SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect, Math::radiansToDegrees(renderRotation), &center, flip);
+
+    SDL_SetRenderTarget(renderer, NULL);
+
+    return BlockResult::CONTINUE;
+}
+#else
+
 BlockResult PenBlocks::EraseAll(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     return BlockResult::CONTINUE;
 }
@@ -115,3 +193,4 @@ BlockResult PenBlocks::EraseAll(Block &block, Sprite *sprite, bool *withoutScree
 BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     return BlockResult::CONTINUE;
 }
+#endif
