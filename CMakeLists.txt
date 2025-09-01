@@ -147,6 +147,13 @@ set(VITA_TITLEID "NTXS00053")
 
 if (NINTENDO_WIIU)
 	wut_create_rpx(scratch-everywhere)
+	wut_create_wuhb(scratch-everywhere
+		NAME "Scratch Everywhere!"
+		AUTHOR "NateXS and Grady Link"
+		ICON "gfx/wiiu/icon.png"
+		TVSPLASH "gfx/wiiu/tv-splash.png"
+		DRCSPLASH "gfx/wiiu/drc-splash.png"
+	)
 elseif(NINTENDO_3DS)
 	ctr_create_3dsx(scratch-everywhere ROMFS ${CMAKE_CURRENT_SOURCE_DIR}/romfs)
 elseif(NINTENDO_SWITCH)
