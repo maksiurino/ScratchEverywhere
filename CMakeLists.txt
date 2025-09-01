@@ -124,6 +124,11 @@ else()
 	target_include_directories(scratch-everywhere PRIVATE ${SOURCES} ${miniz_SOURCE_DIR})
 endif()
 
+set(VITA_APP_NAME "Scratch Everywhere!")
+set(VITA_TITLEID "NTXS00053")
+
+file(GLOB GFXFILES "${CMAKE_SOURCE_DIR}/gfx/*")
+
 if (NINTENDO_WIIU)
 	wut_create_rpx(scratch-everywhere)
 elseif(NINTENDO_3DS)
@@ -132,4 +137,26 @@ elseif(NINTENDO_SWITCH)
 	nx_create_nro(scratch-everywhere ROMFS ${CMAKE_CURRENT_SOURCE_DIR}/romfs)
 elseif(NINTENDO_WII OR NINTENDO_GAMECUBE)
 	ogc_create_dol(scratch-everywhere)
+elseif(VITA)
+	include("${VITASDK}/share/vita.cmake" REQUIRED)
+
+	set(VITA_GFXFILES)
+	foreach(file IN LISTS GFXFILES)
+		if(IS_DIRECTORY "${file}")
+			continue()
+		endif()
+
+		list(APPEND VITA_GFXFILES FILE "${file}" "${file}")
+	endforeach()
+
+	vita_create_self(scratch-everywhere.self scratch-everywhere)
+	vita_create_vpk(scratch-everywhere.vpk ${VITA_TITLEID} scratch-everywhere.self
+		VERSION "01.00"
+		NAME ${VITA_APP_NAME}
+		FILE ${CMAKE_SOURCE_DIR}/gfx/vita/icon0.png sce_sys/icon0.png
+		FILE ${CMAKE_SOURCE_DIR}/gfx/vita/livearea/contents/bg.png sce_sys/livearea/contents/bg.png
+		FILE ${CMAKE_SOURCE_DIR}/gfx/vita/livearea/contents/template.xml sce_sys/livearea/contents/template.xml
+		FILE ${CMAKE_SOURCE_DIR}/gfx/vita/livearea/contents/startup.png sce_sys/livearea/contents/startup.png
+		${VITA_GFXFILES}
+	)
 endif()
