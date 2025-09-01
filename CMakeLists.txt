@@ -83,7 +83,27 @@ list(APPEND SOURCE_FILES "${miniz_SOURCE_DIR}/miniz.c")
 
 add_executable(scratch-everywhere ${SOURCE_FILES})
 
-if (NOT NINTENDO_3DS)
+file(GLOB GFXFILES "${CMAKE_SOURCE_DIR}/gfx/*")
+foreach(file IN LISTS ${GFXFILES})
+	get_filename_component(filename "${file}" NAME)
+
+    set(DEST_FILE "${CMAKE_SOURCE_DIR}/romfs/gfx/${filename}")
+
+    configure_file("${file}" "${DEST_FILE}" COPYONLY)
+endforeach()
+
+if(NINTENDO_WIIU)
+	include("${DEVKITPRO}/portlibs/wiiu/share/romfs-wiiu.cmake" REQUIRED)
+	romfs_add(scratch-everywhere "romfs")
+elseif(NINTENDO_WII)
+	include("${DEVKITPRO}/portlibs/wii/share/romfs-ogc.cmake" REQUIRED)
+	romfs_add(scratch-everywhere "romfs")
+elseif(NINTENDO_GAMECUBE)
+	include("${DEVKITPRO}/portlibs/gamecube/share/romfs-ogc.cmake" REQUIRED)
+	romfs_add(scratch-everywhere "romfs")
+endif()
+
+if(NOT NINTENDO_3DS)
 	target_include_directories(scratch-everywhere PRIVATE
 		${SDL2_INCLUDE_DIRS}
 	    ${SDL2_IMAGE_INCLUDE_DIRS}
@@ -91,7 +111,7 @@ if (NOT NINTENDO_3DS)
 	    ${SDL2_MIXER_INCLUDE_DIRS}
 	)
 
-	target_link_libraries(scratch-everywhere PRIVATE
+	target_link_libraries(scratch-everywhere
 	    ${SDL2_LIBRARIES}
 		${SDL2_IMAGE_LIBRARIES}
 	    ${SDL2_TTF_LIBRARIES}
@@ -109,13 +129,11 @@ else()
 	target_compile_definitions(scratch-everywhere PRIVATE __PC__ SDL_BUILD ENABLE_AUDIO) # TODO: make these configurable
 endif()
 
-target_link_libraries(scratch-everywhere PRIVATE
-    nlohmann_json::nlohmann_json
-)
+target_link_libraries(scratch-everywhere nlohmann_json::nlohmann_json)
 
 
 if(NINTENDO_3DS)
-	target_link_libraries(scratch-everywhere PRIVATE SDL2::SDL2 SDL2_mixer::SDL2_mixer-static nanosvg citro2d citro3d)
+	target_link_libraries(scratch-everywhere SDL2::SDL2 SDL2_mixer::SDL2_mixer-static nanosvg citro2d citro3d)
 endif()
 
 if(NINTENDO_3DS)
@@ -126,8 +144,6 @@ endif()
 
 set(VITA_APP_NAME "Scratch Everywhere!")
 set(VITA_TITLEID "NTXS00053")
-
-file(GLOB GFXFILES "${CMAKE_SOURCE_DIR}/gfx/*")
 
 if (NINTENDO_WIIU)
 	wut_create_rpx(scratch-everywhere)
