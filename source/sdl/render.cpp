@@ -39,6 +39,10 @@
 char nickname[0x21];
 #endif
 
+#ifdef VITA
+#include <psp2/touch.h>
+#endif
+
 #ifdef __OGC__
 #include <fat.h>
 #include <romfs-ogc.h>
@@ -133,8 +137,12 @@ postAccount:
         Log::logError("Failed to init romfs.");
         return false;
     }
-#endif
+#elif defined(VITA)
+    SDL_setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
 
+    windowWidth = 960;
+    windowHeight = 544;
+#endif
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
     IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
 #ifdef ENABLE_AUDIO
@@ -209,6 +217,43 @@ void Render::drawBox(int w, int h, int x, int y, int colorR, int colorG, int col
     SDL_RenderFillRect(renderer, &rect);
 }
 
+std::pair<float, float> screenToScratchCoords(float screenX, float screenY, int windowWidth, int windowHeight) {
+    float screenAspect = static_cast<float>(windowWidth) / windowHeight;
+    float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
+
+    float scratchX, scratchY;
+
+    if (screenAspect > projectAspect) {
+        // Vertical black bars
+        float scale = static_cast<float>(windowHeight) / Scratch::projectHeight;
+        float scaledProjectWidth = Scratch::projectWidth * scale;
+        float barWidth = (windowWidth - scaledProjectWidth) / 2.0f;
+
+        // Remove bar offset and scale to project space
+        float adjustedX = screenX - barWidth;
+        scratchX = (adjustedX / scaledProjectWidth) * Scratch::projectWidth - (Scratch::projectWidth / 2.0f);
+        scratchY = (Scratch::projectHeight / 2.0f) - (screenY / windowHeight) * Scratch::projectHeight;
+
+    } else if (screenAspect < projectAspect) {
+        // Horizontal black bars
+        float scale = static_cast<float>(windowWidth) / Scratch::projectWidth;
+        float scaledProjectHeight = Scratch::projectHeight * scale;
+        float barHeight = (windowHeight - scaledProjectHeight) / 2.0f;
+
+        // Remove bar offset and scale to project space
+        float adjustedY = screenY - barHeight;
+        scratchX = (screenX / windowWidth) * Scratch::projectWidth - (Scratch::projectWidth / 2.0f);
+        scratchY = (Scratch::projectHeight / 2.0f) - (adjustedY / scaledProjectHeight) * Scratch::projectHeight;
+
+    } else {
+        // no black bars..
+        scratchX = (screenX / windowWidth) * Scratch::projectWidth - (Scratch::projectWidth / 2.0f);
+        scratchY = (Scratch::projectHeight / 2.0f) - (screenY / windowHeight) * Scratch::projectHeight;
+    }
+
+    return std::make_pair(scratchX, scratchY);
+}
+
 void drawBlackBars(int screenWidth, int screenHeight) {
     float screenAspect = static_cast<float>(screenWidth) / screenHeight;
     float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
@@ -250,6 +295,27 @@ void Render::renderSprites() {
     double scale;
     scale = std::min(scaleX, scaleY);
 
+    auto stage = *std::find_if(sprites.begin(), sprites.end(), [](const Sprite *sprite) {
+        return sprite->isStage;
+    }); // TODO: Add handling for the stage is missing for some reason
+    auto stageImgFind = images.find(stage->costumes[stage->currentCostume].id);
+
+    if (stageImgFind != images.end()) {
+        SDL_Rect renderRect = {0, 0, 0, 0};
+
+        if (static_cast<float>(windowWidth) / windowHeight > static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight) {
+            renderRect.x = std::ceil((windowWidth - Scratch::projectWidth * (static_cast<float>(windowHeight) / Scratch::projectHeight)) / 2.0f);
+            renderRect.w = windowWidth - renderRect.x * 2;
+            renderRect.h = windowHeight;
+        } else {
+            renderRect.y = std::ceil((windowHeight - Scratch::projectHeight * (static_cast<float>(windowWidth) / Scratch::projectWidth)) / 2.0f);
+            renderRect.h = windowHeight - renderRect.y * 2;
+            renderRect.w = windowWidth;
+        }
+
+        SDL_RenderCopy(renderer, stageImgFind->second->spriteTexture, NULL, &renderRect);
+    }
+
     // Sort sprites by layer first
     std::vector<Sprite *> spritesByLayer = sprites;
     std::sort(spritesByLayer.begin(), spritesByLayer.end(),
@@ -259,6 +325,7 @@ void Render::renderSprites() {
 
     for (Sprite *currentSprite : spritesByLayer) {
         if (!currentSprite->visible) continue;
+        if (currentSprite->isStage) continue;
 
         bool legacyDrawing = false;
         auto imgFind = images.find(currentSprite->costumes[currentSprite->currentCostume].id);
@@ -274,9 +341,11 @@ void Render::renderSprites() {
             SDL_RendererFlip flip = SDL_FLIP_NONE;
 
             image->setScale((currentSprite->size * 0.01) * scale / 2.0f);
-            if (image->isSVG) image->setScale(image->scale * 2);
             currentSprite->spriteWidth = image->textureRect.w / 2;
             currentSprite->spriteHeight = image->textureRect.h / 2;
+            if (image->isSVG) {
+                image->setScale(image->scale * 2);
+            }
             const double rotation = Math::degreesToRadians(currentSprite->rotation - 90.0f);
             double renderRotation = rotation;
 

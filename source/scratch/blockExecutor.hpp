@@ -19,8 +19,8 @@ enum class BlockResult {
 
 class BlockExecutor {
   private:
-    std::unordered_map<Block::opCode, std::function<BlockResult(Block &, Sprite *, bool *, bool)>> handlers;
-    std::unordered_map<Block::opCode, std::function<Value(Block &, Sprite *)>> valueHandlers;
+    std::unordered_map<std::string, std::function<BlockResult(Block &, Sprite *, bool *, bool)>> handlers;
+    std::unordered_map<std::string, std::function<Value(Block &, Sprite *)>> valueHandlers;
     // std::unordered_map<Block::opCode, std::function<Value(Block&,Sprite*)>> conditionBlockHandlers;
 
   public:
@@ -42,7 +42,7 @@ class BlockExecutor {
      * Goes through every `block` in every `sprite` to find and run a block with the specified `opCode`.
      * @param opCodeToFind Name of the block to run
      */
-    static std::vector<Block *> runAllBlocksByOpcode(Block::opCode opcodeToFind);
+    static std::vector<Block *> runAllBlocksByOpcode(std::string opcodeToFind);
 
     /**
      * Goes through every currently active repeat block in every `sprite` and runs it once.
@@ -69,6 +69,13 @@ class BlockExecutor {
      * @return a Vector pair of every block that was run.
      */
     static std::vector<std::pair<Block *, Sprite *>> runBroadcasts();
+
+    /**
+     * Runs and executes a single broadcast
+     * @param broadcastToRun string name of the broadcast you want to run.
+     * @return a Vector pair of every block that was run.
+     */
+    static std::vector<std::pair<Block *, Sprite *>> runBroadcast(std::string broadcastToRun);
 
     /**
      * Executes a `block` function that's registered through `valueHandlers`.

@@ -1,15 +1,16 @@
-name: 3DS Nightly Build
+name: Vita Nightly Build
 
 on:
   push:
     paths:
-      - make/Makefile_3ds
+      - make/Makefile_vita
       - source/scratch/**
-      - source/3ds/**
+      - source/sdl/**
+      - gfx/wii/**
       - gfx/*
       - include/**
-      - .github/workflows/nightly-3ds.yml
-      - docker/Dockerfile.3ds
+      - .github/workflows/nightly-vita.yml
+      - docker/Dockerfile.vita
     branches:
       - main
   workflow_dispatch:
@@ -20,22 +21,19 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
+      - name: Create `romfs` directory
+        run: mkdir romfs
       - name: Build and Export
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: docker/Dockerfile.3ds
+          file: docker/Dockerfile.vita
           target: exporter
           outputs: type=local,dest=.
-
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Scratch Everywhere! 3DS Nightly
-          path: |
-            Scratch.3dsx
-            Scratch.cia
+          name: Scratch Everywhere! Vita Nightly
+          path: scratch-vita.vpk

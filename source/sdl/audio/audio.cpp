@@ -79,8 +79,8 @@ void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, co
         .soundId = soundId,
         .streamed = sprite->isStage}; // stage sprites get streamed audio
 
-#ifdef __OGC__
-    params->streamed = false; // streamed sounds crash on wii
+#if defined(__OGC__) || defined(VITA)
+    params->streamed = false; // streamed sounds crash on wii. vita does not like them either.
 #endif
 
 // do 3DS threads so it can actually run in the background
@@ -175,8 +175,19 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
                     return false;
                 }
             } else {
-                // need to write to a temp file beacause this is zip file
-                std::string tempFile = "temp_" + soundId;
+                // need to write to a temp file because this is a zip file
+                std::string tempDir = OS::getScratchFolderLocation() + "/cache";
+                std::string tempFile = tempDir + "/temp_" + soundId;
+
+                // make cache directory
+                try {
+                    std::filesystem::create_directories(tempDir);
+                } catch (const std::exception &e) {
+                    Log::logWarning(std::string("Failed to create temp directory: ") + e.what());
+                    mz_free(file_data);
+                    return false;
+                }
+
                 FILE *fp = fopen(tempFile.c_str(), "wb");
                 if (!fp) {
                     Log::logWarning("Failed to create temp file for streaming");

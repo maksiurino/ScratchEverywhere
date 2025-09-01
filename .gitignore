@@ -49,11 +49,13 @@ main.code-workspace
 *.nso
 *.elf
 *.smdh
+*.cia
 *.bat
 *.sb3
 *.t3x
 *.dol
 *.wbfs
+*.vpk
 romfs/sample.ogg
 romfs/project.sb3_FILES/project.json
 Scratch-pc
@@ -63,5 +65,5 @@ scratch-wii.zip
 # Stored Files
 cloud-username.txt
 
-# Other
+# CMake
 cmake/CPM.cmake

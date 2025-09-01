@@ -154,16 +154,12 @@ void ProjectMenu::init() {
     backButton->scale = 1.0;
 
     std::vector<std::string> projectFiles;
-#ifdef __3DS__
-    projectFiles = Unzip::getProjectFiles(".");
-#else
     projectFiles = Unzip::getProjectFiles(OS::getScratchFolderLocation());
-#endif
 
     // initialize text and set positions
     int yPosition = 120;
     for (std::string &file : projectFiles) {
-        ButtonObject *project = new ButtonObject(file, "gfx/menu/projectBox.png", 0, yPosition);
+        ButtonObject *project = new ButtonObject(file.substr(0, file.length() - 4), "gfx/menu/projectBox.png", 0, yPosition);
         project->text->setColor(Math::color(0, 0, 0, 255));
         project->canBeClicked = false;
         project->y -= project->text->getSize()[1] / 2;
@@ -201,9 +197,11 @@ void ProjectMenu::init() {
 #ifdef __WIIU__
         noProjectInfo->setText("Put Scratch projects in sd:/wiiu/scratch-wiiu/ !");
 #elif defined(__3DS__)
-        noProjectInfo->setText("Put Scratch projects in sd:/3ds/ !");
+        noProjectInfo->setText("Project location has moved to sd:/3ds/scratch-everywhere !");
 #elif defined(WII)
         noProjectInfo->setText("Put Scratch projects in sd:/apps/scratch-wii !");
+#elif defined(VITA)
+        noProjectInfo->setText("Put Scratch projects in ux0:data/scratch-vita/ ! If the folder doesn't exist, create it.");
 #else
         noProjectInfo->setText("Put Scratch projects in the same folder as the app!");
 #endif
@@ -240,7 +238,7 @@ void ProjectMenu::render() {
 
     if (hasProjects) {
         if (projectControl->selectedObject->isPressed({"a"}) || playButton->isPressed({"a"})) {
-            Unzip::filePath = projectControl->selectedObject->text->getText();
+            Unzip::filePath = projectControl->selectedObject->text->getText() + ".sb3";
             shouldGoBack = true;
             return;
         }
@@ -451,7 +449,7 @@ ControlsMenu::~ControlsMenu() {
 
 void ControlsMenu::init() {
 
-    Unzip::filePath = projectPath;
+    Unzip::filePath = projectPath + ".sb3";
     if (!Unzip::load()) {
         Log::logError("Failed to load project for ControlsMenu.");
         toExit = true;
@@ -465,7 +463,7 @@ void ControlsMenu::init() {
     for (auto &sprite : sprites) {
         for (auto &[id, block] : sprite->blocks) {
             std::string buttonCheck;
-            if (block.opcode == Block::SENSING_KEYPRESSED) {
+            if (block.opcode == "sensing_keypressed") {
 
                 // stolen code from sensing.cpp
 
@@ -479,7 +477,7 @@ void ControlsMenu::init() {
                     buttonCheck = Scratch::getInputValue(block, "KEY_OPTION", sprite).asString();
                 }
 
-            } else if (block.opcode == Block::EVENT_WHEN_KEY_PRESSED) {
+            } else if (block.opcode == "event_whenkeypressed") {
                 buttonCheck = block.fields.at("KEY_OPTION")[0];
             } else continue;
             if (buttonCheck != "" && std::find(controls.begin(), controls.end(), buttonCheck) == controls.end()) {
@@ -659,7 +657,7 @@ void ControlsMenu::render() {
 void ControlsMenu::applyControls() {
     // Build the file path
     std::string folderPath = OS::getScratchFolderLocation() + projectPath;
-    std::string filePath = folderPath + ".json";
+    std::string filePath = folderPath + ".sb3" + ".json";
 
     // Make sure parent directories exist
     try {
