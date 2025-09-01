@@ -143,8 +143,17 @@ else()
 endif()
 
 set(APP_NAME "Scratch Everywhere!")
+set(APP_DESCRIPTION "Play Scratch Games anywhere!")
 
 set(VITA_TITLEID "NTXS00053")
+
+set(BUILD_TIMESTAMP "")
+execute_process(
+    COMMAND date +"%Y%m%d%H%M%S"
+    OUTPUT_VARIABLE BUILD_TIMESTAMP
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+string(REPLACE "\"" "" BUILD_TIMESTAMP "${BUILD_TIMESTAMP}")
 
 if (NINTENDO_WIIU)
 	wut_create_rpx(scratch-everywhere)
@@ -155,6 +164,21 @@ if (NINTENDO_WIIU)
 		TVSPLASH "gfx/wiiu/tv-splash.png"
 		DRCSPLASH "gfx/wiiu/drc-splash.png"
 	)
+	file(GENERATE
+		OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/scratch-everywhere/meta.xml"
+		CONTENT "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>
+<app version=\"1\">
+    <name>${APP_NAME}</name>
+	<coder>NateXS and Grady Link</coder>
+	<version>${CMAKE_PROJECT_VERSION}</version>
+	<release_date>${BUILD_TIMESTAMP}</release_date>
+	<short_description>${APP_DESCRIPTION}</short_description>
+    <long_description>${APP_DESCRIPTION}</long_description>
+</app>"
+	)
+	configure_file("${CMAKE_BINARY_DIR}/scratch-everywhere.wuhb" "${CMAKE_BINARY_DIR}/scratch-everywhere/scratch-everywhere.wuhb" COPYONLY)
+	configure_file("${CMAKE_BINARY_DIR}/scratch-everywhere.rpx" "${CMAKE_BINARY_DIR}/scratch-everywhere/scratch-everywhere.rpx" COPYONLY)
+	configure_file("${CMAKE_SOURCE_DIR}/gfx/wiiu/hbl-icon.png" "${CMAKE_BINARY_DIR}/scratch-everywhere/icon.png" COPYONLY)
 elseif(NINTENDO_3DS)
 	ctr_create_3dsx(scratch-everywhere ROMFS ${CMAKE_CURRENT_SOURCE_DIR}/romfs)
 elseif(NINTENDO_SWITCH)
