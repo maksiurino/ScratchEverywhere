@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(Scratch-Everywhere VERSION 0.19 LANGUAGES CXX C)
+project(Scratch-Everywhere VERSION 0.20 LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -83,7 +83,7 @@ list(APPEND SOURCE_FILES "${miniz_SOURCE_DIR}/miniz.c")
 
 add_executable(scratch-everywhere ${SOURCE_FILES})
 
-file(GLOB GFXFILES "${CMAKE_SOURCE_DIR}/gfx/*")
+file(GLOB_RECURSE GFXFILES "${CMAKE_SOURCE_DIR}/gfx/*")
 foreach(file IN LISTS ${GFXFILES})
 	get_filename_component(filename "${file}" NAME)
 
@@ -142,7 +142,8 @@ else()
 	target_include_directories(scratch-everywhere PRIVATE ${SOURCES} ${miniz_SOURCE_DIR})
 endif()
 
-set(VITA_APP_NAME "Scratch Everywhere!")
+set(APP_NAME "Scratch Everywhere!")
+
 set(VITA_TITLEID "NTXS00053")
 
 if (NINTENDO_WIIU)
@@ -157,7 +158,8 @@ if (NINTENDO_WIIU)
 elseif(NINTENDO_3DS)
 	ctr_create_3dsx(scratch-everywhere ROMFS ${CMAKE_CURRENT_SOURCE_DIR}/romfs)
 elseif(NINTENDO_SWITCH)
-	nx_create_nro(scratch-everywhere ROMFS ${CMAKE_CURRENT_SOURCE_DIR}/romfs)
+	nx_generate_nacp(OUTPUT scratch-everywhere.nacp NAME ${APP_NAME} AUTHOR "NateXS and Grady Link" VERSION ${CMAKE_PROJECT_VERSION})
+	nx_create_nro(scratch-everywhere ROMFS ${CMAKE_CURRENT_SOURCE_DIR}/romfs ICON "gfx/wiiu/icon.png" NACP scratch-everywhere.nacp)
 elseif(NINTENDO_WII OR NINTENDO_GAMECUBE)
 	ogc_create_dol(scratch-everywhere)
 elseif(VITA)
@@ -175,7 +177,7 @@ elseif(VITA)
 	vita_create_self(scratch-everywhere.self scratch-everywhere)
 	vita_create_vpk(scratch-everywhere.vpk ${VITA_TITLEID} scratch-everywhere.self
 		VERSION "01.00"
-		NAME ${VITA_APP_NAME}
+		NAME ${APP_NAME}
 		FILE ${CMAKE_SOURCE_DIR}/gfx/vita/icon0.png sce_sys/icon0.png
 		FILE ${CMAKE_SOURCE_DIR}/gfx/vita/livearea/contents/bg.png sce_sys/livearea/contents/bg.png
 		FILE ${CMAKE_SOURCE_DIR}/gfx/vita/livearea/contents/template.xml sce_sys/livearea/contents/template.xml
