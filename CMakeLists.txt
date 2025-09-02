@@ -22,13 +22,13 @@ if(NINTENDO_3DS OR NINTENDO_WII OR NINTENDO_GAMECUBE)
 endif()
 
 if(NINTENDO_3DS)
-	CPMAddPackage(
-		NAME SDL2
-		GITHUB_REPOSITORY libsdl-org/SDL
-		GIT_TAG release-2.32.8
-		VERSION 2.32.8
-	)
 	if(SE_ENABLE_AUDIO)
+		CPMAddPackage(
+			NAME SDL2
+			GITHUB_REPOSITORY libsdl-org/SDL
+			GIT_TAG release-2.32.8
+			VERSION 2.32.8
+		)
 		CPMAddPackage(
 			NAME SDL2_mixer
 			GITHUB_REPOSITORY libsdl-org/SDL_mixer
@@ -159,9 +159,9 @@ target_link_libraries(scratch-everywhere nlohmann_json::nlohmann_json)
 
 
 if(NINTENDO_3DS)
-	target_link_libraries(scratch-everywhere SDL2::SDL2 nanosvg citro2d citro3d)
+	target_link_libraries(scratch-everywhere nanosvg citro2d citro3d)
 	if (SE_ENABLE_AUDIO)
-		target_link_libraries(scratch-everywhere SDL2_mixer::SDL2_mixer-static)
+		target_link_libraries(scratch-everywhere SDL2::SDL2 SDL2_mixer::SDL2_mixer-static)
 	endif()
 endif()
 
