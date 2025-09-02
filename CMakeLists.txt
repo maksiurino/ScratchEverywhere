@@ -128,10 +128,12 @@ endif()
 
 # TODO: add cloud variable support
 
-if(NINTENDO_WIIU OR NINTENDO_SWITCH)
+if(NINTENDO_WIIU OR NINTENDO_SWITCH OR NINTENDO_WII OR NINTENDO_GAMECUBE)
 	target_compile_definitions(scratch-everywhere PRIVATE SDL_BUILD ENABLE_AUDIO)
 elseif(NINTENDO_3DS)
 	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_AUDIO)
+elseif(VITA)
+	target_compile_definitions(scratch-everywhere PRIVATE VITA SDL_BUILD ENABLE_AUDIO)
 else()
 	target_compile_definitions(scratch-everywhere PRIVATE __PC__ SDL_BUILD ENABLE_AUDIO) # TODO: make these configurable
 endif()
