@@ -582,7 +582,7 @@ void loadSprites(const rapidjson::Document &json) {
                             }
                         }
 
-                        newBlock.parsedFields[fieldName] = parsedField;
+                        (*newBlock.parsedFields)[fieldName] = parsedField;
                     }
                 }
 
@@ -621,7 +621,7 @@ void loadSprites(const rapidjson::Document &json) {
                             }
                         }
 
-                        newBlock.parsedInputs[inputName] = parsedInput;
+                        (*newBlock.parsedInputs)[inputName] = parsedInput;
                     }
                 }
 
@@ -1161,8 +1161,8 @@ std::vector<Block *> getBlockChain(std::string blockId, std::string *outID) {
         if (outID)
             *outID += currentBlock->id;
 
-        auto substackIt = currentBlock->parsedInputs.find("SUBSTACK");
-        if (substackIt != currentBlock->parsedInputs.end() &&
+        auto substackIt = currentBlock->parsedInputs->find("SUBSTACK");
+        if (substackIt != currentBlock->parsedInputs->end() &&
             (substackIt->second.inputType == ParsedInput::BOOLEAN || substackIt->second.inputType == ParsedInput::BLOCK) &&
             !substackIt->second.blockId.empty()) {
 
@@ -1175,8 +1175,8 @@ std::vector<Block *> getBlockChain(std::string blockId, std::string *outID) {
             }
         }
 
-        auto substack2It = currentBlock->parsedInputs.find("SUBSTACK2");
-        if (substack2It != currentBlock->parsedInputs.end() &&
+        auto substack2It = currentBlock->parsedInputs->find("SUBSTACK2");
+        if (substack2It != currentBlock->parsedInputs->end() &&
             (substack2It->second.inputType == ParsedInput::BOOLEAN || substack2It->second.inputType == ParsedInput::BLOCK) &&
             !substack2It->second.blockId.empty()) {
 
@@ -1208,9 +1208,9 @@ Block *getBlockParent(const Block *block) {
 }
 
 Value Scratch::getInputValue(Block &block, const std::string &inputName, Sprite *sprite) {
-    auto parsedFind = block.parsedInputs.find(inputName);
+    auto parsedFind = block.parsedInputs->find(inputName);
 
-    if (parsedFind == block.parsedInputs.end()) {
+    if (parsedFind == block.parsedInputs->end()) {
         return Value();
     }
 
@@ -1233,16 +1233,16 @@ Value Scratch::getInputValue(Block &block, const std::string &inputName, Sprite 
 }
 
 std::string Scratch::getFieldValue(Block &block, const std::string &fieldName) {
-    auto fieldFind = block.parsedFields.find(fieldName);
-    if (fieldFind == block.parsedFields.end()) {
+    auto fieldFind = block.parsedFields->find(fieldName);
+    if (fieldFind == block.parsedFields->end()) {
         return "";
     }
     return fieldFind->second.value;
 }
 
 std::string Scratch::getFieldId(Block &block, const std::string &fieldName) {
-    auto fieldFind = block.parsedFields.find(fieldName);
-    if (fieldFind == block.parsedFields.end()) {
+    auto fieldFind = block.parsedFields->find(fieldName);
+    if (fieldFind == block.parsedFields->end()) {
         return "";
     }
     return fieldFind->second.id;
