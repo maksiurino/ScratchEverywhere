@@ -547,24 +547,24 @@ void loadSprites(const rapidjson::Document &json) {
                 Block newBlock;
                 newBlock.id = id;
 
-                if (data.HasMember("opcode") && data["opcode"].IsString()) {
+                if (data.IsObject() && data.HasMember("opcode") && data["opcode"].IsString()) {
                     newBlock.opcode = data["opcode"].GetString();
                     if (newBlock.opcode == "event_whenthisspriteclicked") {
                         newSprite->shouldDoSpriteClick = true;
                     }
                 }
 
-                if (data.HasMember("next") && !data["next"].IsNull() && data["next"].IsString()) {
+                if (data.IsObject() && data.HasMember("next") && !data["next"].IsNull() && data["next"].IsString()) {
                     newBlock.next = data["next"].GetString();
                 }
 
-                if (data.HasMember("parent") && !data["parent"].IsNull() && data["parent"].IsString()) {
+                if (data.IsObject() && data.HasMember("parent") && !data["parent"].IsNull() && data["parent"].IsString()) {
                     newBlock.parent = data["parent"].GetString();
                 } else {
                     newBlock.parent = "null";
                 }
 
-                if (data.HasMember("fields") && data["fields"].IsObject()) {
+                if (data.IsObject() && data.HasMember("fields") && data["fields"].IsObject()) {
                     const rapidjson::Value &fields = data["fields"];
                     for (auto fieldIt = fields.MemberBegin(); fieldIt != fields.MemberEnd(); ++fieldIt) {
                         const std::string fieldName = fieldIt->name.GetString();
@@ -586,7 +586,7 @@ void loadSprites(const rapidjson::Document &json) {
                     }
                 }
 
-                if (data.HasMember("inputs") && data["inputs"].IsObject()) {
+                if (data.IsObject() && data.HasMember("inputs") && data["inputs"].IsObject()) {
                     const rapidjson::Value &inputs = data["inputs"];
                     for (auto inputIt = inputs.MemberBegin(); inputIt != inputs.MemberEnd(); ++inputIt) {
                         const std::string inputName = inputIt->name.GetString();
@@ -625,14 +625,14 @@ void loadSprites(const rapidjson::Document &json) {
                     }
                 }
 
-                if (data.HasMember("topLevel") && data["topLevel"].IsBool()) {
+                if (data.IsObject() && data.HasMember("topLevel") && data["topLevel"].IsBool()) {
                     newBlock.topLevel = data["topLevel"].GetBool();
                 }
-                if (data.HasMember("shadow") && data["shadow"].IsBool()) {
+                if (data.IsObject() && data.HasMember("shadow") && data["shadow"].IsBool()) {
                     newBlock.shadow = data["shadow"].GetBool();
                 }
 
-                if (data.HasMember("mutation") && data["mutation"].IsObject()) {
+                if (data.IsObject() && data.HasMember("mutation") && data["mutation"].IsObject()) {
                     const rapidjson::Value &mutation = data["mutation"];
                     if (mutation.HasMember("proccode") && mutation["proccode"].IsString()) {
                         newBlock.customBlockId = mutation["proccode"].GetString();
@@ -648,7 +648,7 @@ void loadSprites(const rapidjson::Document &json) {
                     if (!data.IsArray()) {
                         CustomBlock newCustomBlock;
 
-                        if (data.HasMember("mutation") && data["mutation"].IsObject()) {
+                        if (data.IsObject() && data.HasMember("mutation") && data["mutation"].IsObject()) {
                             const rapidjson::Value &mutation = data["mutation"];
 
                             if (mutation.HasMember("proccode") && mutation["proccode"].IsString()) {
@@ -1006,7 +1006,7 @@ void loadSprites(const rapidjson::Document &json) {
     bool infClones = false;
 
     try {
-        if (config.HasMember("framerate") && config["framerate"].IsInt()) {
+        if (config.IsObject() && config.HasMember("framerate") && config["framerate"].IsInt()) {
             framerate = config["framerate"].GetInt();
             Scratch::FPS = framerate;
             Log::log("FPS = " + std::to_string(Scratch::FPS));
@@ -1016,7 +1016,7 @@ void loadSprites(const rapidjson::Document &json) {
     }
 
     try {
-        if (config.HasMember("width") && config["width"].IsInt()) {
+        if (config.IsObject() && config.HasMember("width") && config["width"].IsInt()) {
             wdth = config["width"].GetInt();
             Scratch::projectWidth = wdth;
             Log::log("game width = " + std::to_string(Scratch::projectWidth));
@@ -1026,7 +1026,7 @@ void loadSprites(const rapidjson::Document &json) {
     }
 
     try {
-        if (config.HasMember("height") && config["height"].IsInt()) {
+        if (config.IsObject() && config.HasMember("height") && config["height"].IsInt()) {
             hght = config["height"].GetInt();
             Scratch::projectHeight = hght;
             Log::log("game height = " + std::to_string(Scratch::projectHeight));
@@ -1036,7 +1036,7 @@ void loadSprites(const rapidjson::Document &json) {
     }
 
     try {
-        if (config.HasMember("runtimeOptions") && config["runtimeOptions"].IsObject()) {
+        if (config.IsObject() && config.HasMember("runtimeOptions") && config["runtimeOptions"].IsObject()) {
             const rapidjson::Value &runtimeOptions = config["runtimeOptions"];
             if (runtimeOptions.HasMember("fencing") && runtimeOptions["fencing"].IsBool()) {
                 fncng = runtimeOptions["fencing"].GetBool();
@@ -1049,7 +1049,7 @@ void loadSprites(const rapidjson::Document &json) {
     }
 
     try {
-        if (config.HasMember("runtimeOptions") && config["runtimeOptions"].IsObject()) {
+        if (config.IsObject() && config.HasMember("runtimeOptions") && config["runtimeOptions"].IsObject()) {
             const rapidjson::Value &runtimeOptions = config["runtimeOptions"];
             if (runtimeOptions.HasMember("miscLimits") && runtimeOptions["miscLimits"].IsBool()) {
                 miscLimits = runtimeOptions["miscLimits"].GetBool();
@@ -1062,7 +1062,7 @@ void loadSprites(const rapidjson::Document &json) {
     }
 
     try {
-        if (config.HasMember("runtimeOptions") && config["runtimeOptions"].IsObject()) {
+        if (config.IsObject() && config.HasMember("runtimeOptions") && config["runtimeOptions"].IsObject()) {
             const rapidjson::Value &runtimeOptions = config["runtimeOptions"];
             if (runtimeOptions.HasMember("maxClones")) {
                 infClones = !runtimeOptions["maxClones"].IsNull();
