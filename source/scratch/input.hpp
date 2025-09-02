@@ -1,6 +1,9 @@
 #pragma once
 #include "interpret.hpp"
 #include "os.hpp"
+#include "rapidjson/document.h"
+#include "rapidjson/error/en.h"
+#include "rapidjson/istreamwrapper.h"
 #include <algorithm>
 #include <fstream>
 #include <map>
@@ -34,18 +37,35 @@ class Input {
             std::ifstream file(controlsFilePath);
             if (file.is_open()) {
                 Log::log("Loading controls from file: " + controlsFilePath);
-                nlohmann::json controlsJson;
-                file >> controlsJson;
 
-                // Access the "controls" object specifically
-                if (controlsJson.contains("controls")) {
-                    for (auto &[key, value] : controlsJson["controls"].items()) {
-                        inputControls[value.get<std::string>()] = key;
-                        Log::log("Loaded control: " + key + " -> " + value.get<std::string>());
+                rapidjson::Document controlsJson;
+                rapidjson::IStreamWrapper isw(file);
+                rapidjson::ParseResult parseResult = controlsJson.ParseStream(isw);
+
+                // Check for parse errors
+                if (!parseResult) {
+                    Log::logError("JSON parse error in controls file: " +
+                                  std::string(rapidjson::GetParseError_En(parseResult.Code())) +
+                                  " at offset " + std::to_string(parseResult.Offset()));
+                    file.close();
+                } else {
+                    // Access the "controls" object specifically
+                    if (controlsJson.HasMember("controls") && controlsJson["controls"].IsObject()) {
+                        const rapidjson::Value &controls = controlsJson["controls"];
+
+                        for (auto it = controls.MemberBegin(); it != controls.MemberEnd(); ++it) {
+                            const std::string key = it->name.GetString();
+
+                            if (it->value.IsString()) {
+                                const std::string value = it->value.GetString();
+                                inputControls[value] = key;
+                                Log::log("Loaded control: " + key + " -> " + value);
+                            }
+                        }
                     }
+                    file.close();
+                    return;
                 }
-                file.close();
-                return;
             } else {
                 Log::logWarning("Failed to open controls file: " + controlsFilePath);
             }

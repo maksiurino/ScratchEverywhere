@@ -5,6 +5,7 @@
 #include "interpret.hpp"
 #include "miniz/miniz.h"
 #include "sprite.hpp"
+#include <filesystem>
 #include <string>
 #include <unordered_map>
 #ifdef __3DS__
