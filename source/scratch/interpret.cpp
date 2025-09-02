@@ -4,7 +4,6 @@
 #include "input.hpp"
 #include "math.hpp"
 #include "miniz/miniz.h"
-#include "nlohmann/json.hpp"
 #include "os.hpp"
 #include "render.hpp"
 #include "sprite.hpp"

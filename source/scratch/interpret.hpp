@@ -7,7 +7,6 @@
 #include <cmath>
 #include <iostream>
 #include <list>
-#include <nlohmann/json.hpp>
 #include <random>
 #include <string>
 #include <time.hpp>

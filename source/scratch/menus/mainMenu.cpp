@@ -5,7 +5,6 @@
 #include "../interpret.hpp"
 #include "../render.hpp"
 #include "../unzip.hpp"
-#include <nlohmann/json.hpp>
 #ifdef __WIIU__
 #include <whb/sdcard.h>
 #endif
