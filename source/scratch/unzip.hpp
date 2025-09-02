@@ -1,5 +1,8 @@
 #include "interpret.hpp"
 #include "os.hpp"
+#include "rapidjson/document.h"
+#include "rapidjson/error/en.h"
+#include "rapidjson/istreamwrapper.h"
 #include <filesystem>
 #include <fstream>
 #ifdef GAMECUBE
@@ -35,14 +38,17 @@ class Unzip {
             Unzip::threadFinished = true;
             return;
         }
+
         loadingState = "Unzipping Scratch project";
-        nlohmann::json project_json = unzipProject(&file);
-        if (project_json.empty()) {
-            Log::logError("Project.json is empty.");
+        rapidjson::Document project_json;
+        bool success = unzipProject(&file, project_json);
+        if (!success || project_json.IsNull() || project_json.ObjectEmpty()) {
+            Log::logError("Project.json is empty or failed to parse.");
             Unzip::projectOpened = -2;
             Unzip::threadFinished = true;
             return;
         }
+
         loadingState = "Loading Sprites";
         loadSprites(project_json);
         Unzip::projectOpened = 1;
@@ -142,10 +148,7 @@ class Unzip {
         return splash;
     }
 
-    static nlohmann::json unzipProject(std::ifstream *file) {
-
-        nlohmann::json project_json;
-
+    static bool unzipProject(std::ifstream *file, rapidjson::Document &project_json) {
         if (projectType != UNZIPPED) {
             // read the file
             Log::log("Reading SB3...");
@@ -153,7 +156,7 @@ class Unzip {
             file->seekg(0, std::ios::beg);        // go to the beginning of the file
             zipBuffer.resize(size);
             if (!file->read(zipBuffer.data(), size)) {
-                return project_json;
+                return false;
             }
             size_t bufferSize = zipBuffer.size();
 
@@ -164,14 +167,14 @@ class Unzip {
             Log::log("Opening SB3 file...");
             memset(&zipArchive, 0, sizeof(zipArchive));
             if (!mz_zip_reader_init_mem(&zipArchive, zipBuffer.data(), zipBuffer.size(), 0)) {
-                return project_json;
+                return false;
             }
 
             // extract project.json
             Log::log("Extracting project.json...");
             int file_index = mz_zip_reader_locate_file(&zipArchive, "project.json", NULL, 0);
             if (file_index < 0) {
-                return project_json;
+                return false;
             }
 
             size_t json_size;
@@ -184,24 +187,44 @@ class Unzip {
             // Parse JSON file
             Log::log("Parsing project.json...");
             MemoryTracker::allocate(json_size);
-            project_json = nlohmann::json::parse(std::string(json_data, json_size));
+
+            // Parse the JSON string using RapidJSON
+            rapidjson::ParseResult parseResult = project_json.Parse(json_data, json_size);
+
+            // Clean up allocated memory
             mz_free((void *)json_data);
             MemoryTracker::deallocate(nullptr, json_size);
 
-            // Image::loadImages(&zipArchive);
-            // mz_zip_reader_end(&zipArchive);
+            // Check for parse errors
+            if (!parseResult) {
+                Log::logError("JSON parse error: " + std::string(rapidjson::GetParseError_En(parseResult.Code())) +
+                              " at offset " + std::to_string(parseResult.Offset()));
+                return false;
+            }
+
         } else {
             // if project is unzipped
             file->clear();                 // Clear any EOF flags
             file->seekg(0, std::ios::beg); // Go to the start of the file
+
 #ifdef ENABLE_CLOUDVARS
             projectJSON = {std::istreambuf_iterator<char>(*file), std::istreambuf_iterator<char>()};
 #endif
-            (*file) >> project_json;
-        }
-        return project_json;
-    }
 
+            // Use RapidJSON's IStreamWrapper for parsing from ifstream
+            rapidjson::IStreamWrapper isw(*file);
+            rapidjson::ParseResult parseResult = project_json.ParseStream(isw);
+
+            // Check for parse errors
+            if (!parseResult) {
+                Log::logError("JSON parse error: " + std::string(rapidjson::GetParseError_En(parseResult.Code())) +
+                              " at offset " + std::to_string(parseResult.Offset()));
+                return false;
+            }
+        }
+
+        return true;
+    }
     static int openFile(std::ifstream *file);
 
     static bool load();

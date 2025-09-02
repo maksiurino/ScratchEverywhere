@@ -1,6 +1,9 @@
 #pragma once
 #include "math.hpp"
 #include "os.hpp"
+#include "rapidjson/document.h"
+#include "rapidjson/stringbuffer.h"
+#include "rapidjson/writer.h"
 #include <cmath>
 #include <iostream>
 #include <string>
@@ -250,17 +253,21 @@ class Value {
         return asString() > other.asString();
     }
 
-    static Value fromJson(const nlohmann::json &jsonVal) {
-        if (jsonVal.is_null()) return Value();
+    static Value fromJson(const rapidjson::Value &jsonVal) {
+        if (jsonVal.IsNull()) {
+            return Value();
+        }
 
-        if (jsonVal.is_number_integer()) {
-            return Value(jsonVal.get<int>());
-        } else if (jsonVal.is_number_float()) {
-            return Value(jsonVal.get<double>());
-        } else if (jsonVal.is_string()) {
-            std::string strVal = jsonVal.get<std::string>();
+        if (jsonVal.IsInt()) {
+            return Value(jsonVal.GetInt());
+        } else if (jsonVal.IsDouble() || jsonVal.IsFloat()) {
+            return Value(jsonVal.GetDouble());
+        } else if (jsonVal.IsString()) {
+            std::string strVal = jsonVal.GetString();
 
-            if (strVal == "Infinity" || strVal == "-Infinity") return Value(strVal);
+            if (strVal == "Infinity" || strVal == "-Infinity") {
+                return Value(strVal);
+            }
 
             if (Math::isNumber(strVal)) {
                 double numVal;
@@ -280,7 +287,9 @@ class Value {
                             numVal = std::stod(strVal);
                             break;
                         }
-                    } else numVal = std::stod(strVal);
+                    } else {
+                        numVal = std::stod(strVal);
+                    }
                 } catch (const std::invalid_argument &e) {
                     Log::logError("Invalid number format: " + strVal);
                     return Value(0);
@@ -295,14 +304,16 @@ class Value {
                 return Value(numVal);
             }
             return Value(strVal);
-        } else if (jsonVal.is_boolean()) {
-            return Value(Math::removeQuotations(jsonVal.dump()));
-        } else if (jsonVal.is_array()) {
-            if (jsonVal.size() > 1) {
+        } else if (jsonVal.IsBool()) {
+            // Convert boolean to string similar to nlohmann's dump()
+            return Value(jsonVal.GetBool() ? "true" : "false");
+        } else if (jsonVal.IsArray()) {
+            if (jsonVal.Size() > 1) {
                 return fromJson(jsonVal[1]);
             }
             return Value(0);
         }
+
         return Value(0);
     }
 

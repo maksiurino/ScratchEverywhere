@@ -5,6 +5,9 @@
 #include "math.hpp"
 #include "miniz/miniz.h"
 #include "os.hpp"
+#include "rapidjson/document.h"
+#include "rapidjson/stringbuffer.h"
+#include "rapidjson/writer.h"
 #include "render.hpp"
 #include "sprite.hpp"
 #include "unzip.hpp"
@@ -445,316 +448,485 @@ void Scratch::fenceSpriteWithinBounds(Sprite *sprite) {
     }
 }
 
-void loadSprites(const nlohmann::json &json) {
+void loadSprites(const rapidjson::Document &json) {
     Log::log("beginning to load sprites...");
     sprites.reserve(400);
-    for (const auto &target : json["targets"]) { // "target" is sprite in Scratch speak, so for every sprite in sprites
+
+    const rapidjson::Value &targets = json["targets"];
+    for (rapidjson::SizeType i = 0; i < targets.Size(); i++) {
+        const rapidjson::Value &target = targets[i];
 
         Sprite *newSprite = MemoryTracker::allocate<Sprite>();
-        // Sprite *newSprite = new Sprite();
         new (newSprite) Sprite();
-        if (target.contains("name")) {
-            newSprite->name = target["name"].get<std::string>();
+
+        if (target.HasMember("name") && target["name"].IsString()) {
+            newSprite->name = target["name"].GetString();
         }
         newSprite->id = Math::generateRandomString(15);
-        if (target.contains("isStage")) {
-            newSprite->isStage = target["isStage"].get<bool>();
+
+        if (target.HasMember("isStage") && target["isStage"].IsBool()) {
+            newSprite->isStage = target["isStage"].GetBool();
         }
-        if (target.contains("draggable")) {
-            newSprite->draggable = target["draggable"].get<bool>();
+        if (target.HasMember("draggable") && target["draggable"].IsBool()) {
+            newSprite->draggable = target["draggable"].GetBool();
         }
-        if (target.contains("visible")) {
-            newSprite->visible = target["visible"].get<bool>();
-        } else newSprite->visible = true;
-        if (target.contains("currentCostume")) {
-            newSprite->currentCostume = target["currentCostume"].get<int>();
+        if (target.HasMember("visible") && target["visible"].IsBool()) {
+            newSprite->visible = target["visible"].GetBool();
+        } else {
+            newSprite->visible = true;
         }
-        if (target.contains("volume")) {
-            newSprite->volume = target["volume"].get<int>();
+        if (target.HasMember("currentCostume") && target["currentCostume"].IsInt()) {
+            newSprite->currentCostume = target["currentCostume"].GetInt();
         }
-        if (target.contains("x")) {
-            newSprite->xPosition = target["x"].get<int>();
+        if (target.HasMember("volume") && target["volume"].IsInt()) {
+            newSprite->volume = target["volume"].GetInt();
         }
-        if (target.contains("y")) {
-            newSprite->yPosition = target["y"].get<int>();
+        if (target.HasMember("x") && target["x"].IsInt()) {
+            newSprite->xPosition = target["x"].GetInt();
         }
-        if (target.contains("size")) {
-            newSprite->size = target["size"].get<int>();
-        } else newSprite->size = 100;
-        if (target.contains("direction")) {
-            newSprite->rotation = target["direction"].get<int>();
-        } else newSprite->rotation = 90;
-        if (target.contains("layerOrder")) {
-            newSprite->layer = target["layerOrder"].get<int>();
-        } else newSprite->layer = 0;
-        if (target.contains("rotationStyle")) {
-            if (target["rotationStyle"].get<std::string>() == "all around")
+        if (target.HasMember("y") && target["y"].IsInt()) {
+            newSprite->yPosition = target["y"].GetInt();
+        }
+        if (target.HasMember("size") && target["size"].IsInt()) {
+            newSprite->size = target["size"].GetInt();
+        } else {
+            newSprite->size = 100;
+        }
+        if (target.HasMember("direction") && target["direction"].IsInt()) {
+            newSprite->rotation = target["direction"].GetInt();
+        } else {
+            newSprite->rotation = 90;
+        }
+        if (target.HasMember("layerOrder") && target["layerOrder"].IsInt()) {
+            newSprite->layer = target["layerOrder"].GetInt();
+        } else {
+            newSprite->layer = 0;
+        }
+        if (target.HasMember("rotationStyle") && target["rotationStyle"].IsString()) {
+            std::string rotStyle = target["rotationStyle"].GetString();
+            if (rotStyle == "all around")
                 newSprite->rotationStyle = newSprite->ALL_AROUND;
-            else if (target["rotationStyle"].get<std::string>() == "left-right")
+            else if (rotStyle == "left-right")
                 newSprite->rotationStyle = newSprite->LEFT_RIGHT;
             else
                 newSprite->rotationStyle = newSprite->NONE;
         }
         newSprite->toDelete = false;
         newSprite->isClone = false;
-        // std::cout<<"name = "<< newSprite.name << std::endl;
 
         // set variables
-        for (const auto &[id, data] : target["variables"].items()) {
+        if (target.HasMember("variables") && target["variables"].IsObject()) {
+            const rapidjson::Value &variables = target["variables"];
+            for (auto it = variables.MemberBegin(); it != variables.MemberEnd(); ++it) {
+                const std::string id = it->name.GetString();
+                const rapidjson::Value &data = it->value;
 
-            Variable newVariable;
-            newVariable.id = id;
-            newVariable.name = data[0];
-            newVariable.value = Value::fromJson(data[1]);
+                Variable newVariable;
+                newVariable.id = id;
+                if (data.IsArray() && data.Size() >= 2) {
+                    if (data[0].IsString()) {
+                        newVariable.name = data[0].GetString();
+                    }
+                    newVariable.value = Value::fromJson(data[1]);
 #ifdef ENABLE_CLOUDVARS
-            newVariable.cloud = data.size() == 3;
-            cloudProject = cloudProject || newVariable.cloud;
+                    newVariable.cloud = data.Size() == 3;
+                    cloudProject = cloudProject || newVariable.cloud;
 #endif
-            newSprite->variables[newVariable.id] = newVariable; // add variable to sprite
+                }
+                newSprite->variables[newVariable.id] = newVariable;
+            }
         }
 
         // set Blocks
-        for (const auto &[id, data] : target["blocks"].items()) {
+        if (target.HasMember("blocks") && target["blocks"].IsObject()) {
+            const rapidjson::Value &blocks = target["blocks"];
+            for (auto it = blocks.MemberBegin(); it != blocks.MemberEnd(); ++it) {
+                const std::string id = it->name.GetString();
+                const rapidjson::Value &data = it->value;
 
-            Block newBlock;
-            newBlock.id = id;
-            if (data.contains("opcode")) {
-                newBlock.opcode = data["opcode"].get<std::string>();
+                Block newBlock;
+                newBlock.id = id;
 
-                if (newBlock.opcode == "event_whenthisspriteclicked") newSprite->shouldDoSpriteClick = true;
-            }
-            if (data.contains("next") && !data["next"].is_null()) {
-                newBlock.next = data["next"].get<std::string>();
-            }
-            if (data.contains("parent") && !data["parent"].is_null()) {
-                newBlock.parent = data["parent"].get<std::string>();
-            } else newBlock.parent = "null";
-            if (data.contains("fields")) {
-                for (const auto &[fieldName, fieldData] : data["fields"].items()) {
-                    ParsedField parsedField;
-
-                    // Fields are almost always arrays with [0] being the value
-                    if (fieldData.is_array() && !fieldData.empty()) {
-                        parsedField.value = fieldData[0].get<std::string>();
-
-                        // Store ID for variables and lists
-                        if (fieldData.size() > 1 && !fieldData[1].is_null()) {
-                            parsedField.id = fieldData[1].get<std::string>();
-                        }
+                if (data.HasMember("opcode") && data["opcode"].IsString()) {
+                    newBlock.opcode = data["opcode"].GetString();
+                    if (newBlock.opcode == "event_whenthisspriteclicked") {
+                        newSprite->shouldDoSpriteClick = true;
                     }
-
-                    newBlock.parsedFields[fieldName] = parsedField;
                 }
-            }
-            if (data.contains("inputs")) {
 
-                for (const auto &[inputName, inputData] : data["inputs"].items()) {
-                    ParsedInput parsedInput;
-
-                    int type = inputData[0];
-                    auto &inputValue = inputData[1];
-
-                    if (type == 1) {
-                        parsedInput.inputType = ParsedInput::LITERAL;
-                        parsedInput.literalValue = Value::fromJson(inputValue);
-
-                    } else if (type == 3) {
-                        if (inputValue.is_array()) {
-                            parsedInput.inputType = ParsedInput::VARIABLE;
-                            parsedInput.variableId = inputValue[2].get<std::string>();
-                        } else {
-                            parsedInput.inputType = ParsedInput::BLOCK;
-                            if (!inputValue.is_null())
-                                parsedInput.blockId = inputValue.get<std::string>();
-                        }
-                    } else if (type == 2) {
-                        parsedInput.inputType = ParsedInput::BOOLEAN;
-                        parsedInput.blockId = inputValue.get<std::string>();
-                    }
-                    newBlock.parsedInputs[inputName] = parsedInput;
+                if (data.HasMember("next") && !data["next"].IsNull() && data["next"].IsString()) {
+                    newBlock.next = data["next"].GetString();
                 }
-            }
-            if (data.contains("topLevel")) {
-                newBlock.topLevel = data["topLevel"].get<bool>();
-            }
-            if (data.contains("shadow")) {
-                newBlock.shadow = data["shadow"].get<bool>();
-            }
-            if (data.contains("mutation")) {
-                if (data["mutation"].contains("proccode")) {
-                    newBlock.customBlockId = data["mutation"]["proccode"].get<std::string>();
+
+                if (data.HasMember("parent") && !data["parent"].IsNull() && data["parent"].IsString()) {
+                    newBlock.parent = data["parent"].GetString();
                 } else {
-                    newBlock.customBlockId = "";
+                    newBlock.parent = "null";
                 }
-            }
-            newSprite->blocks[newBlock.id] = newBlock; // add block
 
-            // add custom function blocks
-            if (newBlock.opcode == "procedures_prototype") {
-                if (!data.is_array()) {
-                    CustomBlock newCustomBlock;
-                    newCustomBlock.name = data["mutation"]["proccode"];
-                    newCustomBlock.blockId = newBlock.id;
+                if (data.HasMember("fields") && data["fields"].IsObject()) {
+                    const rapidjson::Value &fields = data["fields"];
+                    for (auto fieldIt = fields.MemberBegin(); fieldIt != fields.MemberEnd(); ++fieldIt) {
+                        const std::string fieldName = fieldIt->name.GetString();
+                        const rapidjson::Value &fieldData = fieldIt->value;
 
-                    // custom blocks uses a different json structure for some reason?? have to parse them.
-                    std::string rawArgumentNames = data["mutation"]["argumentnames"];
-                    nlohmann::json parsedAN = nlohmann::json::parse(rawArgumentNames);
-                    newCustomBlock.argumentNames = parsedAN.get<std::vector<std::string>>();
+                        ParsedField parsedField;
 
-                    std::string rawArgumentDefaults = data["mutation"]["argumentdefaults"];
-                    nlohmann::json parsedAD = nlohmann::json::parse(rawArgumentDefaults);
-                    // newCustomBlock.argumentDefaults = parsedAD.get<std::vector<std::string>>();
+                        if (fieldData.IsArray() && fieldData.Size() > 0) {
+                            if (fieldData[0].IsString()) {
+                                parsedField.value = fieldData[0].GetString();
+                            }
 
-                    for (const auto &item : parsedAD) {
-                        if (item.is_string()) {
-                            newCustomBlock.argumentDefaults.push_back(item.get<std::string>());
-                        } else if (item.is_number_integer()) {
-                            newCustomBlock.argumentDefaults.push_back(std::to_string(item.get<int>()));
-                        } else if (item.is_number_float()) {
-                            newCustomBlock.argumentDefaults.push_back(std::to_string(item.get<double>()));
-                        } else {
-                            newCustomBlock.argumentDefaults.push_back(item.dump());
+                            if (fieldData.Size() > 1 && !fieldData[1].IsNull() && fieldData[1].IsString()) {
+                                parsedField.id = fieldData[1].GetString();
+                            }
                         }
+
+                        newBlock.parsedFields[fieldName] = parsedField;
                     }
+                }
 
-                    std::string rawArgumentIds = data["mutation"]["argumentids"];
-                    nlohmann::json parsedAID = nlohmann::json::parse(rawArgumentIds);
-                    newCustomBlock.argumentIds = parsedAID.get<std::vector<std::string>>();
+                if (data.HasMember("inputs") && data["inputs"].IsObject()) {
+                    const rapidjson::Value &inputs = data["inputs"];
+                    for (auto inputIt = inputs.MemberBegin(); inputIt != inputs.MemberEnd(); ++inputIt) {
+                        const std::string inputName = inputIt->name.GetString();
+                        const rapidjson::Value &inputData = inputIt->value;
 
-                    if (data["mutation"]["warp"] == "true") {
-                        newCustomBlock.runWithoutScreenRefresh = true;
-                    } else newCustomBlock.runWithoutScreenRefresh = false;
+                        ParsedInput parsedInput;
 
-                    newSprite->customBlocks[newCustomBlock.name] = newCustomBlock; // add custom block
-                } else {
-                    Log::logError("Unknown Custom block data: " + data.dump()); // TODO handle these
+                        if (inputData.IsArray() && inputData.Size() >= 2) {
+                            int type = inputData[0].GetInt();
+                            const rapidjson::Value &inputValue = inputData[1];
+
+                            if (type == 1) {
+                                parsedInput.inputType = ParsedInput::LITERAL;
+                                parsedInput.literalValue = Value::fromJson(inputValue);
+                            } else if (type == 3) {
+                                if (inputValue.IsArray()) {
+                                    parsedInput.inputType = ParsedInput::VARIABLE;
+                                    if (inputValue.Size() > 2 && inputValue[2].IsString()) {
+                                        parsedInput.variableId = inputValue[2].GetString();
+                                    }
+                                } else {
+                                    parsedInput.inputType = ParsedInput::BLOCK;
+                                    if (!inputValue.IsNull() && inputValue.IsString()) {
+                                        parsedInput.blockId = inputValue.GetString();
+                                    }
+                                }
+                            } else if (type == 2) {
+                                parsedInput.inputType = ParsedInput::BOOLEAN;
+                                if (inputValue.IsString()) {
+                                    parsedInput.blockId = inputValue.GetString();
+                                }
+                            }
+                        }
+
+                        newBlock.parsedInputs[inputName] = parsedInput;
+                    }
+                }
+
+                if (data.HasMember("topLevel") && data["topLevel"].IsBool()) {
+                    newBlock.topLevel = data["topLevel"].GetBool();
+                }
+                if (data.HasMember("shadow") && data["shadow"].IsBool()) {
+                    newBlock.shadow = data["shadow"].GetBool();
+                }
+
+                if (data.HasMember("mutation") && data["mutation"].IsObject()) {
+                    const rapidjson::Value &mutation = data["mutation"];
+                    if (mutation.HasMember("proccode") && mutation["proccode"].IsString()) {
+                        newBlock.customBlockId = mutation["proccode"].GetString();
+                    } else {
+                        newBlock.customBlockId = "";
+                    }
+                }
+
+                newSprite->blocks[newBlock.id] = newBlock;
+
+                // add custom function blocks
+                if (newBlock.opcode == "procedures_prototype") {
+                    if (!data.IsArray()) {
+                        CustomBlock newCustomBlock;
+
+                        if (data.HasMember("mutation") && data["mutation"].IsObject()) {
+                            const rapidjson::Value &mutation = data["mutation"];
+
+                            if (mutation.HasMember("proccode") && mutation["proccode"].IsString()) {
+                                newCustomBlock.name = mutation["proccode"].GetString();
+                            }
+                            newCustomBlock.blockId = newBlock.id;
+
+                            // Parse argument names
+                            if (mutation.HasMember("argumentnames") && mutation["argumentnames"].IsString()) {
+                                std::string rawArgumentNames = mutation["argumentnames"].GetString();
+                                rapidjson::Document parsedAN;
+                                if (!parsedAN.Parse(rawArgumentNames.c_str()).HasParseError() && parsedAN.IsArray()) {
+                                    for (rapidjson::SizeType j = 0; j < parsedAN.Size(); j++) {
+                                        if (parsedAN[j].IsString()) {
+                                            newCustomBlock.argumentNames.push_back(parsedAN[j].GetString());
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Parse argument defaults
+                            if (mutation.HasMember("argumentdefaults") && mutation["argumentdefaults"].IsString()) {
+                                std::string rawArgumentDefaults = mutation["argumentdefaults"].GetString();
+                                rapidjson::Document parsedAD;
+                                if (!parsedAD.Parse(rawArgumentDefaults.c_str()).HasParseError() && parsedAD.IsArray()) {
+                                    for (rapidjson::SizeType j = 0; j < parsedAD.Size(); j++) {
+                                        const rapidjson::Value &item = parsedAD[j];
+                                        if (item.IsString()) {
+                                            newCustomBlock.argumentDefaults.push_back(item.GetString());
+                                        } else if (item.IsInt()) {
+                                            newCustomBlock.argumentDefaults.push_back(std::to_string(item.GetInt()));
+                                        } else if (item.IsDouble()) {
+                                            newCustomBlock.argumentDefaults.push_back(std::to_string(item.GetDouble()));
+                                        } else {
+                                            // For complex types, convert to string representation
+                                            rapidjson::StringBuffer buffer;
+                                            rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+                                            item.Accept(writer);
+                                            newCustomBlock.argumentDefaults.push_back(buffer.GetString());
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Parse argument IDs
+                            if (mutation.HasMember("argumentids") && mutation["argumentids"].IsString()) {
+                                std::string rawArgumentIds = mutation["argumentids"].GetString();
+                                rapidjson::Document parsedAID;
+                                if (!parsedAID.Parse(rawArgumentIds.c_str()).HasParseError() && parsedAID.IsArray()) {
+                                    for (rapidjson::SizeType j = 0; j < parsedAID.Size(); j++) {
+                                        if (parsedAID[j].IsString()) {
+                                            newCustomBlock.argumentIds.push_back(parsedAID[j].GetString());
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (mutation.HasMember("warp") && mutation["warp"].IsString()) {
+                                newCustomBlock.runWithoutScreenRefresh = (std::string(mutation["warp"].GetString()) == "true");
+                            } else {
+                                newCustomBlock.runWithoutScreenRefresh = false;
+                            }
+                        }
+
+                        newSprite->customBlocks[newCustomBlock.name] = newCustomBlock;
+                    } else {
+                        // Convert data to string for logging
+                        rapidjson::StringBuffer buffer;
+                        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+                        data.Accept(writer);
+                        Log::logError("Unknown Custom block data: " + std::string(buffer.GetString()));
+                    }
                 }
             }
         }
 
         // set Lists
-        for (const auto &[id, data] : target["lists"].items()) {
-            List newList;
-            newList.id = id;
-            newList.name = data[0];
-            for (const auto &listItem : data[1]) {
-                newList.items.push_back(Value::fromJson(listItem));
+        if (target.HasMember("lists") && target["lists"].IsObject()) {
+            const rapidjson::Value &lists = target["lists"];
+            for (auto it = lists.MemberBegin(); it != lists.MemberEnd(); ++it) {
+                const std::string id = it->name.GetString();
+                const rapidjson::Value &data = it->value;
+
+                List newList;
+                newList.id = id;
+                if (data.IsArray() && data.Size() >= 2) {
+                    if (data[0].IsString()) {
+                        newList.name = data[0].GetString();
+                    }
+                    if (data[1].IsArray()) {
+                        const rapidjson::Value &listItems = data[1];
+                        for (rapidjson::SizeType j = 0; j < listItems.Size(); j++) {
+                            newList.items.push_back(Value::fromJson(listItems[j]));
+                        }
+                    }
+                }
+                newSprite->lists[newList.id] = newList;
             }
-            newSprite->lists[newList.id] = newList; // add list
         }
 
         // set Sounds
-        for (const auto &[id, data] : target["sounds"].items()) {
-            Sound newSound;
-            newSound.id = data["assetId"];
-            newSound.name = data["name"];
-            newSound.fullName = data["md5ext"];
-            newSound.dataFormat = data["dataFormat"];
-            newSound.sampleRate = data["rate"];
-            newSound.sampleCount = data["sampleCount"];
-            newSprite->sounds[newSound.name] = newSound;
+        if (target.HasMember("sounds") && target["sounds"].IsArray()) {
+            const rapidjson::Value &sounds = target["sounds"];
+            for (rapidjson::SizeType i = 0; i < sounds.Size(); i++) {
+                const rapidjson::Value &data = sounds[i];
+
+                Sound newSound;
+                if (data.HasMember("assetId") && data["assetId"].IsString()) {
+                    newSound.id = data["assetId"].GetString();
+                }
+                if (data.HasMember("name") && data["name"].IsString()) {
+                    newSound.name = data["name"].GetString();
+                }
+                if (data.HasMember("md5ext") && data["md5ext"].IsString()) {
+                    newSound.fullName = data["md5ext"].GetString();
+                }
+                if (data.HasMember("dataFormat") && data["dataFormat"].IsString()) {
+                    newSound.dataFormat = data["dataFormat"].GetString();
+                }
+                if (data.HasMember("rate") && data["rate"].IsInt()) {
+                    newSound.sampleRate = data["rate"].GetInt();
+                }
+                if (data.HasMember("sampleCount") && data["sampleCount"].IsInt()) {
+                    newSound.sampleCount = data["sampleCount"].GetInt();
+                }
+                newSprite->sounds[newSound.name] = newSound;
+            }
         }
 
         // set Costumes
-        for (const auto &[id, data] : target["costumes"].items()) {
-            Costume newCostume;
-            newCostume.id = data["assetId"];
-            if (data.contains("name")) {
-                newCostume.name = data["name"];
+        if (target.HasMember("costumes") && target["costumes"].IsArray()) {
+            const rapidjson::Value &costumes = target["costumes"];
+            for (rapidjson::SizeType i = 0; i < costumes.Size(); i++) {
+                const rapidjson::Value &data = costumes[i];
+
+                Costume newCostume;
+                if (data.HasMember("assetId") && data["assetId"].IsString()) {
+                    newCostume.id = data["assetId"].GetString();
+                }
+                if (data.HasMember("name") && data["name"].IsString()) {
+                    newCostume.name = data["name"].GetString();
+                }
+                if (data.HasMember("bitmapResolution") && data["bitmapResolution"].IsNumber()) {
+                    newCostume.bitmapResolution = data["bitmapResolution"].GetDouble();
+                }
+                if (data.HasMember("dataFormat") && data["dataFormat"].IsString()) {
+                    newCostume.dataFormat = data["dataFormat"].GetString();
+                }
+                if (data.HasMember("md5ext") && data["md5ext"].IsString()) {
+                    newCostume.fullName = data["md5ext"].GetString();
+                }
+                if (data.HasMember("rotationCenterX") && data["rotationCenterX"].IsNumber()) {
+                    newCostume.rotationCenterX = data["rotationCenterX"].GetDouble();
+                }
+                if (data.HasMember("rotationCenterY") && data["rotationCenterY"].IsNumber()) {
+                    newCostume.rotationCenterY = data["rotationCenterY"].GetDouble();
+                }
+                newSprite->costumes.push_back(newCostume);
             }
-            if (data.contains("bitmapResolution")) {
-                newCostume.bitmapResolution = data["bitmapResolution"];
-            }
-            if (data.contains("dataFormat")) {
-                newCostume.dataFormat = data["dataFormat"];
-            }
-            if (data.contains("md5ext")) {
-                newCostume.fullName = data["md5ext"];
-            }
-            if (data.contains("rotationCenterX")) {
-                newCostume.rotationCenterX = data["rotationCenterX"];
-            }
-            if (data.contains("rotationCenterY")) {
-                newCostume.rotationCenterY = data["rotationCenterY"];
-            }
-            newSprite->costumes.push_back(newCostume);
         }
 
         // set comments
-        for (const auto &[id, data] : target["comments"].items()) {
-            Comment newComment;
-            newComment.id = id;
-            if (data.contains("blockId") && !data["blockId"].is_null()) {
-                newComment.blockId = data["blockId"];
+        if (target.HasMember("comments") && target["comments"].IsObject()) {
+            const rapidjson::Value &comments = target["comments"];
+            for (auto it = comments.MemberBegin(); it != comments.MemberEnd(); ++it) {
+                const std::string id = it->name.GetString();
+                const rapidjson::Value &data = it->value;
+
+                Comment newComment;
+                newComment.id = id;
+                if (data.HasMember("blockId") && !data["blockId"].IsNull() && data["blockId"].IsString()) {
+                    newComment.blockId = data["blockId"].GetString();
+                }
+                if (data.HasMember("width") && data["width"].IsNumber()) {
+                    newComment.width = data["width"].GetDouble();
+                }
+                if (data.HasMember("height") && data["height"].IsNumber()) {
+                    newComment.height = data["height"].GetDouble();
+                }
+                if (data.HasMember("minimized") && data["minimized"].IsBool()) {
+                    newComment.minimized = data["minimized"].GetBool();
+                }
+                if (data.HasMember("x") && data["x"].IsNumber()) {
+                    newComment.x = data["x"].GetDouble();
+                }
+                if (data.HasMember("y") && data["y"].IsNumber()) {
+                    newComment.y = data["y"].GetDouble();
+                }
+                if (data.HasMember("text") && data["text"].IsString()) {
+                    newComment.text = data["text"].GetString();
+                }
+                newSprite->comments[newComment.id] = newComment;
             }
-            newComment.width = data["width"];
-            newComment.height = data["height"];
-            newComment.minimized = data["minimized"];
-            newComment.x = data["x"];
-            newComment.y = data["y"];
-            newComment.text = data["text"];
-            newSprite->comments[newComment.id] = newComment;
         }
 
         // set Broadcasts
-        for (const auto &[id, data] : target["broadcasts"].items()) {
-            Broadcast newBroadcast;
-            newBroadcast.id = id;
-            newBroadcast.name = data;
-            newSprite->broadcasts[newBroadcast.id] = newBroadcast;
-            // std::cout<<"broadcast name = "<< newBroadcast.name << std::endl;
+        if (target.HasMember("broadcasts") && target["broadcasts"].IsObject()) {
+            const rapidjson::Value &broadcasts = target["broadcasts"];
+            for (auto it = broadcasts.MemberBegin(); it != broadcasts.MemberEnd(); ++it) {
+                const std::string id = it->name.GetString();
+                const rapidjson::Value &data = it->value;
+
+                Broadcast newBroadcast;
+                newBroadcast.id = id;
+                if (data.IsString()) {
+                    newBroadcast.name = data.GetString();
+                }
+                newSprite->broadcasts[newBroadcast.id] = newBroadcast;
+            }
         }
 
         sprites.push_back(newSprite);
     }
 
-    for (const auto &monitor : json["monitors"]) { // "monitor" is any variable shown on screen
-        Monitor newMonitor;
+    // Handle monitors
+    if (json.HasMember("monitors") && json["monitors"].IsArray()) {
+        const rapidjson::Value &monitors = json["monitors"];
+        for (rapidjson::SizeType i = 0; i < monitors.Size(); i++) {
+            const rapidjson::Value &monitor = monitors[i];
 
-        if (monitor.contains("id") && !monitor["id"].is_null())
-            newMonitor.id = monitor.at("id").get<std::string>();
+            Monitor newMonitor;
 
-        if (monitor.contains("mode") && !monitor["mode"].is_null())
-            newMonitor.mode = monitor.at("mode").get<std::string>();
+            if (monitor.HasMember("id") && !monitor["id"].IsNull() && monitor["id"].IsString())
+                newMonitor.id = monitor["id"].GetString();
 
-        if (monitor.contains("opcode") && !monitor["opcode"].is_null())
-            newMonitor.opcode = monitor.at("opcode").get<std::string>();
+            if (monitor.HasMember("mode") && !monitor["mode"].IsNull() && monitor["mode"].IsString())
+                newMonitor.mode = monitor["mode"].GetString();
 
-        if (monitor.contains("params") && monitor["params"].is_object()) {
-            for (const auto &param : monitor["params"].items()) {
-                std::string key = param.key();
-                std::string value = param.value().dump();
-                newMonitor.parameters[key] = value;
+            if (monitor.HasMember("opcode") && !monitor["opcode"].IsNull() && monitor["opcode"].IsString())
+                newMonitor.opcode = monitor["opcode"].GetString();
+
+            if (monitor.HasMember("params") && monitor["params"].IsObject()) {
+                const rapidjson::Value &params = monitor["params"];
+                for (auto it = params.MemberBegin(); it != params.MemberEnd(); ++it) {
+                    std::string key = it->name.GetString();
+
+                    // Convert value to string
+                    rapidjson::StringBuffer buffer;
+                    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+                    it->value.Accept(writer);
+                    std::string value = buffer.GetString();
+
+                    newMonitor.parameters[key] = value;
+                }
             }
+
+            if (monitor.HasMember("spriteName") && !monitor["spriteName"].IsNull() && monitor["spriteName"].IsString())
+                newMonitor.spriteName = monitor["spriteName"].GetString();
+            else
+                newMonitor.spriteName = "";
+
+            if (monitor.HasMember("value") && !monitor["value"].IsNull()) {
+                rapidjson::StringBuffer buffer;
+                rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+                monitor["value"].Accept(writer);
+                newMonitor.value = Value(Math::removeQuotations(buffer.GetString()));
+            }
+
+            if (monitor.HasMember("x") && !monitor["x"].IsNull() && monitor["x"].IsInt())
+                newMonitor.x = monitor["x"].GetInt();
+
+            if (monitor.HasMember("y") && !monitor["y"].IsNull() && monitor["y"].IsInt())
+                newMonitor.y = monitor["y"].GetInt();
+
+            if (monitor.HasMember("visible") && !monitor["visible"].IsNull() && monitor["visible"].IsBool())
+                newMonitor.visible = monitor["visible"].GetBool();
+
+            if (monitor.HasMember("isDiscrete") && !monitor["isDiscrete"].IsNull() && monitor["isDiscrete"].IsBool())
+                newMonitor.isDiscrete = monitor["isDiscrete"].GetBool();
+
+            if (monitor.HasMember("sliderMin") && !monitor["sliderMin"].IsNull() && monitor["sliderMin"].IsNumber())
+                newMonitor.sliderMin = monitor["sliderMin"].GetDouble();
+
+            if (monitor.HasMember("sliderMax") && !monitor["sliderMax"].IsNull() && monitor["sliderMax"].IsNumber())
+                newMonitor.sliderMax = monitor["sliderMax"].GetDouble();
+
+            Render::visibleVariables.push_back(newMonitor);
         }
-
-        if (monitor.contains("spriteName") && !monitor["spriteName"].is_null())
-            newMonitor.spriteName = monitor.at("spriteName").get<std::string>();
-        else
-            newMonitor.spriteName = "";
-
-        if (monitor.contains("value") && !monitor["value"].is_null())
-            newMonitor.value = Value(Math::removeQuotations(monitor.at("value").dump()));
-
-        if (monitor.contains("x") && !monitor["x"].is_null())
-            newMonitor.x = monitor.at("x").get<int>();
-
-        if (monitor.contains("y") && !monitor["y"].is_null())
-            newMonitor.y = monitor.at("y").get<int>();
-
-        if (monitor.contains("visible") && !monitor["visible"].is_null())
-            newMonitor.visible = monitor.at("visible").get<bool>();
-
-        if (monitor.contains("isDiscrete") && !monitor["isDiscrete"].is_null())
-            newMonitor.isDiscrete = monitor.at("isDiscrete").get<bool>();
-
-        if (monitor.contains("sliderMin") && !monitor["sliderMin"].is_null())
-            newMonitor.sliderMin = monitor.at("sliderMin").get<double>();
-
-        if (monitor.contains("sliderMax") && !monitor["sliderMax"].is_null())
-            newMonitor.sliderMax = monitor.at("sliderMax").get<double>();
-
-        Render::visibleVariables.push_back(newMonitor);
     }
 
     // load block lookup table
@@ -764,21 +936,20 @@ void loadSprites(const nlohmann::json &json) {
             blockLookup[id] = &block;
         }
     }
+
     // setup top level blocks
     for (Sprite *currentSprite : sprites) {
         for (auto &[id, block] : currentSprite->blocks) {
-            if (block.topLevel) continue;                           // skip top level blocks
-            block.topLevelParentBlock = getBlockParent(&block)->id; // get parent block id
-            // std::cout<<"block id = "<< block.topLevelParentBlock << std::endl;
+            if (block.topLevel) continue;
+            block.topLevelParentBlock = getBlockParent(&block)->id;
         }
     }
 
     // try to find the advanced project settings comment
-    nlohmann::json config;
+    rapidjson::Document config;
     for (Sprite *currentSprite : sprites) {
         if (!currentSprite->isStage) continue;
         for (auto &[id, comment] : currentSprite->comments) {
-            // make sure its the turbowarp comment
             std::size_t settingsFind = comment.text.find("Configuration for https");
             if (settingsFind == std::string::npos) continue;
             std::size_t json_start = comment.text.find('{');
@@ -801,7 +972,7 @@ void loadSprites(const nlohmann::json &json) {
                     else if (c == '}') braceCount--;
 
                     if (braceCount == 0) {
-                        json_end++; // Include final '}'
+                        json_end++;
                         break;
                     }
                 }
@@ -813,21 +984,19 @@ void loadSprites(const nlohmann::json &json) {
 
             std::string json_str = comment.text.substr(json_start, json_end - json_start);
 
-            // Replace inifity with null, since the json cant handle infinity
+            // Replace infinity with null, since the json cant handle infinity
             std::string cleaned_json = json_str;
             std::size_t inf_pos;
             while ((inf_pos = cleaned_json.find("Infinity")) != std::string::npos) {
-                cleaned_json.replace(inf_pos, 8, "1e9"); // or replace with "null", depending on your logic
+                cleaned_json.replace(inf_pos, 8, "1e9");
             }
 
-            try {
-                config = nlohmann::json::parse(cleaned_json);
+            if (!config.Parse(cleaned_json.c_str()).HasParseError()) {
                 break;
-            } catch (nlohmann::json::parse_error &e) {
-                continue;
             }
         }
     }
+
     // set advanced project settings properties
     int wdth = 0;
     int hght = 0;
@@ -837,43 +1006,68 @@ void loadSprites(const nlohmann::json &json) {
     bool infClones = false;
 
     try {
-        framerate = config["framerate"].get<int>();
-        Scratch::FPS = framerate;
-        Log::log("FPS = " + std::to_string(Scratch::FPS));
+        if (config.HasMember("framerate") && config["framerate"].IsInt()) {
+            framerate = config["framerate"].GetInt();
+            Scratch::FPS = framerate;
+            Log::log("FPS = " + std::to_string(Scratch::FPS));
+        }
     } catch (...) {
         Log::logWarning("no framerate property.");
     }
+
     try {
-        wdth = config["width"].get<int>();
-        Scratch::projectWidth = wdth;
-        Log::log("game width = " + std::to_string(Scratch::projectWidth));
+        if (config.HasMember("width") && config["width"].IsInt()) {
+            wdth = config["width"].GetInt();
+            Scratch::projectWidth = wdth;
+            Log::log("game width = " + std::to_string(Scratch::projectWidth));
+        }
     } catch (...) {
         Log::logWarning("no width property.");
     }
+
     try {
-        hght = config["height"].get<int>();
-        Scratch::projectHeight = hght;
-        Log::log("game height = " + std::to_string(Scratch::projectHeight));
+        if (config.HasMember("height") && config["height"].IsInt()) {
+            hght = config["height"].GetInt();
+            Scratch::projectHeight = hght;
+            Log::log("game height = " + std::to_string(Scratch::projectHeight));
+        }
     } catch (...) {
         Log::logWarning("no height property.");
     }
+
     try {
-        fncng = config["runtimeOptions"]["fencing"].get<bool>();
-        Scratch::fencing = fncng;
-        Log::log(std::string("Fencing is ") + (Scratch::fencing ? "true" : "false"));
+        if (config.HasMember("runtimeOptions") && config["runtimeOptions"].IsObject()) {
+            const rapidjson::Value &runtimeOptions = config["runtimeOptions"];
+            if (runtimeOptions.HasMember("fencing") && runtimeOptions["fencing"].IsBool()) {
+                fncng = runtimeOptions["fencing"].GetBool();
+                Scratch::fencing = fncng;
+                Log::log(std::string("Fencing is ") + (Scratch::fencing ? "true" : "false"));
+            }
+        }
     } catch (...) {
         Log::logWarning("no fencing property.");
     }
-    try {
-        miscLimits = config["runtimeOptions"]["miscLimits"].get<bool>();
-        Scratch::miscellaneousLimits = miscLimits;
-        Log::log(std::string("Misc limits is ") + (Scratch::miscellaneousLimits ? "true" : "false"));
-    } catch (...) {
 
+    try {
+        if (config.HasMember("runtimeOptions") && config["runtimeOptions"].IsObject()) {
+            const rapidjson::Value &runtimeOptions = config["runtimeOptions"];
+            if (runtimeOptions.HasMember("miscLimits") && runtimeOptions["miscLimits"].IsBool()) {
+                miscLimits = runtimeOptions["miscLimits"].GetBool();
+                Scratch::miscellaneousLimits = miscLimits;
+                Log::log(std::string("Misc limits is ") + (Scratch::miscellaneousLimits ? "true" : "false"));
+            }
+        }
+    } catch (...) {
         Log::logWarning("no misc limits property.");
     }
+
     try {
-        infClones = !config["runtimeOptions"]["maxClones"].is_null();
+        if (config.HasMember("runtimeOptions") && config["runtimeOptions"].IsObject()) {
+            const rapidjson::Value &runtimeOptions = config["runtimeOptions"];
+            if (runtimeOptions.HasMember("maxClones")) {
+                infClones = !runtimeOptions["maxClones"].IsNull();
+            }
+        }
     } catch (...) {
         Log::logWarning("No Max clones property.");
     }
@@ -933,7 +1127,6 @@ void loadSprites(const nlohmann::json &json) {
             BlockChain chain;
             chain.blockChain = getBlockChain(block.id, &outID);
             currentSprite->blockChains[outID] = chain;
-            // std::cout << "ok = " << outID << std::endl;
             block.blockChainID = outID;
 
             for (auto &chainBlock : chain.blockChain) {

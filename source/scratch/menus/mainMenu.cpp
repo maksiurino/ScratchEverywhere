@@ -5,6 +5,10 @@
 #include "../interpret.hpp"
 #include "../render.hpp"
 #include "../unzip.hpp"
+#include "rapidjson/document.h"
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/stringbuffer.h"
+#include "rapidjson/writer.h"
 #ifdef __WIIU__
 #include <whb/sdcard.h>
 #endif
@@ -688,14 +692,24 @@ void ControlsMenu::applyControls() {
         return;
     }
 
-    // Create a JSON object to hold control mappings
-    nlohmann::json json;
-    json["controls"] = nlohmann::json::object();
+    // Create a RapidJSON document to hold control mappings
+    rapidjson::Document json;
+    json.SetObject();
+    rapidjson::Document::AllocatorType &allocator = json.GetAllocator();
+
+    // Create the controls object
+    rapidjson::Value controls(rapidjson::kObjectType);
 
     // Save each control in the form: "ControlName": "MappedKey"
     for (const auto &c : controlButtons) {
-        json["controls"][c.control] = c.controlValue;
+        rapidjson::Value controlName(c.control.c_str(), allocator);
+        rapidjson::Value controlValue(c.controlValue.c_str(), allocator);
+        controls.AddMember(controlName, controlValue, allocator);
     }
+
+    // Add controls object to the main document
+    rapidjson::Value controlsKey("controls", allocator);
+    json.AddMember(controlsKey, controls, allocator);
 
     // Write JSON to file (overwrite if exists)
     std::ofstream file(filePath);
@@ -703,7 +717,15 @@ void ControlsMenu::applyControls() {
         Log::logError("Failed to create JSON file: " + filePath);
         return;
     }
-    file << json.dump(2);
+
+    // Convert RapidJSON document to pretty-printed string
+    rapidjson::StringBuffer buffer;
+    rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
+    writer.SetIndent(' ', 2); // Set indentation to 2 spaces
+    json.Accept(writer);
+
+    // Write the JSON string to file
+    file << buffer.GetString();
     file.close();
 
     Log::log("Controls saved to: " + filePath);

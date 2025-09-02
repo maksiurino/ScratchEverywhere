@@ -67,7 +67,7 @@ bool isSeparated(const std::vector<std::pair<double, double>> &poly1,
  * Loads every Sprite from the Scratch's project.json file.
  * @param json The file to load
  */
-void loadSprites(const nlohmann::json &json);
+void loadSprites(const rapidjson::Document &json);
 
 /**
  * Frees every Sprite from memory.
