@@ -16,38 +16,47 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 endif()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 
-if(NINTENDO_3DS)
-CPMAddPackage(
-    NAME SDL2
-    GITHUB_REPOSITORY libsdl-org/SDL
-	GIT_TAG release-2.32.8
-    VERSION 2.32.8
-)
-CPMAddPackage(
-    NAME SDL2_mixer
-    GITHUB_REPOSITORY libsdl-org/SDL_mixer
-	GIT_TAG release-2.8.1
-    VERSION 2.8.1
-	OPTIONS "SDL2MIXER_VORBIS STB" "SDL2MIXER_MP3 MINIMP3" "SDL2MIXER_FLAC DRFLAC" "SDL2MIXER_MOD OFF" "SDL2MIXER_OPUS OFF" "SDL2MIXER_FLUIDSYNTH OFF" "SDL2MIXER_WAVPACK OFF" "SDL2MIXER_MIDI OFF"
-)
-CPMAddPackage(
-	NAME nanosvg
-	GITHUB_REPOSITORY memononen/nanosvg
-	GIT_TAG HEAD # TODO: pin commit
-)
-CPMAddPackage(
-    NAME stb
-    GITHUB_REPOSITORY nothings/stb
-	GIT_TAG master # TODO: pin commit
-	DOWNLOAD_ONLY YES
-)
-else()
-find_package(PkgConfig REQUIRED)
+option(SE_ENABLE_AUDIO "Enables audio in SE!" ON)
+if(NINTENDO_3DS OR NINTENDO_WII OR NINTENDO_GAMECUBE)
+	option(SE_ENABLE_BUBBLES "Enables the bubbles loading screen." ON)
+endif()
 
-pkg_check_modules(SDL2 REQUIRED IMPORTED_TARGET sdl2)
-pkg_check_modules(SDL2_IMAGE REQUIRED SDL2_image>=2.0.0)
-pkg_check_modules(SDL2_TTF REQUIRED SDL2_ttf>=2.0.0)
-pkg_check_modules(SDL2_MIXER REQUIRED SDL2_mixer>=2.0.0)
+if(NINTENDO_3DS)
+	CPMAddPackage(
+		NAME SDL2
+		GITHUB_REPOSITORY libsdl-org/SDL
+		GIT_TAG release-2.32.8
+		VERSION 2.32.8
+	)
+	if(SE_ENABLE_AUDIO)
+		CPMAddPackage(
+			NAME SDL2_mixer
+			GITHUB_REPOSITORY libsdl-org/SDL_mixer
+			GIT_TAG release-2.8.1
+			VERSION 2.8.1
+			OPTIONS "SDL2MIXER_VORBIS STB" "SDL2MIXER_MP3 MINIMP3" "SDL2MIXER_FLAC DRFLAC" "SDL2MIXER_MOD OFF" "SDL2MIXER_OPUS OFF" "SDL2MIXER_FLUIDSYNTH OFF" "SDL2MIXER_WAVPACK OFF" "SDL2MIXER_MIDI OFF"
+		)
+	endif()
+	CPMAddPackage(
+		NAME nanosvg
+		GITHUB_REPOSITORY memononen/nanosvg
+		GIT_TAG HEAD # TODO: pin commit
+	)
+	CPMAddPackage(
+		NAME stb
+		GITHUB_REPOSITORY nothings/stb
+		GIT_TAG master # TODO: pin commit
+		DOWNLOAD_ONLY YES
+	)
+else()
+	find_package(PkgConfig REQUIRED)
+
+	pkg_check_modules(SDL2 REQUIRED IMPORTED_TARGET sdl2)
+	pkg_check_modules(SDL2_IMAGE REQUIRED SDL2_image>=2.0.0)
+	pkg_check_modules(SDL2_TTF REQUIRED SDL2_ttf>=2.0.0)
+	if(SE_ENABLE_AUDIO)
+		pkg_check_modules(SDL2_MIXER REQUIRED SDL2_mixer>=2.0.0)
+	endif()
 endif()
 
 CPMAddPackage(
@@ -64,9 +73,9 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(miniz)
 
 if(NINTENDO_3DS)
-set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/3ds source/sdl/audio)
+	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/3ds source/sdl/audio)
 else()
-set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio)
+	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio)
 endif()
 
 set(SOURCE_FILES)
@@ -115,34 +124,45 @@ if(NOT NINTENDO_3DS)
 		${SDL2_INCLUDE_DIRS}
 	    ${SDL2_IMAGE_INCLUDE_DIRS}
 	    ${SDL2_TTF_INCLUDE_DIRS}
-	    ${SDL2_MIXER_INCLUDE_DIRS}
 	)
 
 	target_link_libraries(scratch-everywhere
 	    ${SDL2_LIBRARIES}
 		${SDL2_IMAGE_LIBRARIES}
 	    ${SDL2_TTF_LIBRARIES}
-		${SDL2_MIXER_LIBRARIES}
 	)
+
+	if(SE_ENABLE_AUDIO)
+		target_include_directories(scratch-everywhere PRIVATE ${SDL2_MIXER_INCLUDE_DIRS})
+		target_link_libraries(scratch-everywhere ${SDL2_MIXER_LIBRARIES})
+	endif()
 endif()
 
 # TODO: add cloud variable support
 
 if(NINTENDO_WIIU OR NINTENDO_SWITCH OR NINTENDO_WII OR NINTENDO_GAMECUBE)
-	target_compile_definitions(scratch-everywhere PRIVATE SDL_BUILD ENABLE_AUDIO)
-elseif(NINTENDO_3DS)
-	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_AUDIO)
+	target_compile_definitions(scratch-everywhere PRIVATE SDL_BUILD)
 elseif(VITA)
-	target_compile_definitions(scratch-everywhere PRIVATE VITA SDL_BUILD ENABLE_AUDIO)
-else()
-	target_compile_definitions(scratch-everywhere PRIVATE __PC__ SDL_BUILD ENABLE_AUDIO) # TODO: make these configurable
+	target_compile_definitions(scratch-everywhere PRIVATE VITA SDL_BUILD)
+elseif(NOT NINTENDO_3DS)
+	target_compile_definitions(scratch-everywhere PRIVATE __PC__ SDL_BUILD)
+endif()
+
+if(SE_ENABLE_AUDIO)
+	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_AUDIO)
+endif()
+if (SE_ENABLE_BUBBLES)
+	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_BUBBLES)
 endif()
 
 target_link_libraries(scratch-everywhere nlohmann_json::nlohmann_json)
 
 
 if(NINTENDO_3DS)
-	target_link_libraries(scratch-everywhere SDL2::SDL2 SDL2_mixer::SDL2_mixer-static nanosvg citro2d citro3d)
+	target_link_libraries(scratch-everywhere SDL2::SDL2 nanosvg citro2d citro3d)
+	if (SE_ENABLE_AUDIO)
+		target_link_libraries(scratch-everywhere SDL2_mixer::SDL2_mixer-static)
+	endif()
 endif()
 
 if(NINTENDO_3DS)
