@@ -92,6 +92,10 @@ foreach(file IN LISTS ${GFXFILES})
     configure_file("${file}" "${DEST_FILE}" COPYONLY)
 endforeach()
 
+if(NINTENDO_WII OR NINTENDO_GAMECUBE)
+	set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+endif()
+
 if(NINTENDO_WIIU)
 	include("${DEVKITPRO}/portlibs/wiiu/share/romfs-wiiu.cmake" REQUIRED)
 	romfs_add(scratch-everywhere "romfs")
