@@ -180,8 +180,20 @@ if (NINTENDO_WIIU)
     <long_description>${APP_DESCRIPTION}</long_description>
 </app>"
 	)
-	configure_file("${CMAKE_BINARY_DIR}/scratch-everywhere.wuhb" "${CMAKE_BINARY_DIR}/scratch-everywhere/scratch-everywhere.wuhb" COPYONLY)
-	configure_file("${CMAKE_BINARY_DIR}/scratch-everywhere.rpx" "${CMAKE_BINARY_DIR}/scratch-everywhere/scratch-everywhere.rpx" COPYONLY)
+	add_custom_command(
+		TARGET scratch-everywhere
+		POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy
+		ARGS "${CMAKE_BINARY_DIR}/scratch-everywhere.wuhb" "${CMAKE_BINARY_DIR}/scratch-everywhere/scratch-everywhere.wuhb"
+		COMMENT "Packaging 'scratch-everywhere.wuhb'..."
+	)
+	add_custom_command(
+		TARGET scratch-everywhere
+		POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy
+		ARGS "${CMAKE_BINARY_DIR}/scratch-everywhere.rpx" "${CMAKE_BINARY_DIR}/scratch-everywhere/scratch-everywhere.rpx"
+		COMMENT "Packaging 'scratch-everywhere.rpx'..."
+	)
 	configure_file("${CMAKE_SOURCE_DIR}/gfx/wiiu/hbl-icon.png" "${CMAKE_BINARY_DIR}/scratch-everywhere/icon.png" COPYONLY)
 elseif(NINTENDO_3DS)
 	ctr_create_3dsx(scratch-everywhere ROMFS ${CMAKE_CURRENT_SOURCE_DIR}/romfs)
