@@ -84,12 +84,15 @@ list(APPEND SOURCE_FILES "${miniz_SOURCE_DIR}/miniz.c")
 add_executable(scratch-everywhere ${SOURCE_FILES})
 
 file(GLOB_RECURSE GFXFILES "${CMAKE_SOURCE_DIR}/gfx/*")
-foreach(file IN LISTS ${GFXFILES})
-	get_filename_component(filename "${file}" NAME)
+foreach(file IN LISTS GFXFILES)
+    file(RELATIVE_PATH REL_PATH "${CMAKE_SOURCE_DIR}/gfx" "${file}")
 
-    set(DEST_FILE "${CMAKE_SOURCE_DIR}/romfs/gfx/${filename}")
+    set(DEST_PATH "${CMAKE_SOURCE_DIR}/romfs/gfx/${REL_PATH}")
 
-    configure_file("${file}" "${DEST_FILE}" COPYONLY)
+    get_filename_component(DEST_DIR "${DEST_PATH}" DIRECTORY)
+    file(MAKE_DIRECTORY "${DEST_DIR}")
+
+    configure_file("${file}" "${DEST_PATH}" COPYONLY)
 endforeach()
 
 if(NINTENDO_WII OR NINTENDO_GAMECUBE)
@@ -231,11 +234,9 @@ elseif(VITA)
 
 	set(VITA_GFXFILES)
 	foreach(file IN LISTS GFXFILES)
-		if(IS_DIRECTORY "${file}")
-			continue()
-		endif()
-
-		list(APPEND VITA_GFXFILES FILE "${file}" "${file}")
+		file(RELATIVE_PATH REL_PATH "${CMAKE_SOURCE_DIR}/gfx" "${file}")
+		set(DEST_PATH "gfx/${REL_PATH}")
+		list(APPEND VITA_GFXFILES FILE "${file}" "${DEST_PATH}")
 	endforeach()
 
 	vita_create_self(scratch-everywhere.self scratch-everywhere)
