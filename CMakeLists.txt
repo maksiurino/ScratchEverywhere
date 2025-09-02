@@ -200,7 +200,30 @@ elseif(NINTENDO_3DS)
 elseif(NINTENDO_SWITCH)
 	nx_generate_nacp(OUTPUT scratch-everywhere.nacp NAME ${APP_NAME} AUTHOR "NateXS and Grady Link" VERSION ${CMAKE_PROJECT_VERSION})
 	nx_create_nro(scratch-everywhere ROMFS ${CMAKE_CURRENT_SOURCE_DIR}/romfs ICON "gfx/wiiu/icon.png" NACP scratch-everywhere.nacp)
-elseif(NINTENDO_WII OR NINTENDO_GAMECUBE)
+elseif(NINTENDO_WII)
+	file(GENERATE
+		OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/scratch-everywhere/meta.xml"
+		CONTENT "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>
+<app version=\"1\">
+    <name>${APP_NAME}</name>
+	<coder>NateXS</coder>
+	<version>${CMAKE_PROJECT_VERSION}</version>
+	<release_date>${BUILD_TIMESTAMP}</release_date>
+	<short_description>${APP_DESCRIPTION}</short_description>
+    <long_description>${APP_DESCRIPTION}</long_description>
+</app>"
+	)
+
+	ogc_create_dol(scratch-everywhere)
+	add_custom_command(
+		TARGET scratch-everywhere
+		POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy
+		ARGS "${CMAKE_BINARY_DIR}/scratch-everywhere.dol" "${CMAKE_BINARY_DIR}/scratch-everywhere/boot.dol"
+		COMMENT "Packaging 'scratch-everywhere.dol'..."
+	)
+	configure_file("${CMAKE_SOURCE_DIR}/gfx/wii/icon.png" "${CMAKE_BINARY_DIR}/scratch-everywhere/icon.png" COPYONLY)
+elseif(NINTENDO_GAMECUBE)
 	ogc_create_dol(scratch-everywhere)
 elseif(VITA)
 	include("${VITASDK}/share/vita.cmake" REQUIRED)
