@@ -60,6 +60,7 @@ class ProjectMenu : public Menu {
     ButtonObject *backButton = nullptr;
     ButtonObject *playButton = nullptr;
     ButtonObject *settingsButton = nullptr;
+    ButtonObject *downloadButton = nullptr;
     ButtonObject *noProjectsButton = nullptr;
     TextObject *noProjectInfo = nullptr;
     TextObject *noProjectsText = nullptr;
@@ -113,5 +114,20 @@ class ControlsMenu : public Menu {
     void init() override;
     void render() override;
     void applyControls();
+    void cleanup() override;
+};
+
+class DownloadMenu : public Menu {
+  public:
+    DownloadMenu();
+    ~DownloadMenu();
+
+    ButtonObject *input = nullptr;
+    ButtonObject *selectScratchBox = nullptr;
+    ButtonObject *selectScratch = nullptr;
+    ButtonObject *downloadButton = nullptr;
+
+    void init() override;
+    void render() override;
     void cleanup() override;
 };

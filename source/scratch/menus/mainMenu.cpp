@@ -5,6 +5,7 @@
 #include "../interpret.hpp"
 #include "../render.hpp"
 #include "../unzip.hpp"
+#include "menuObjects.hpp"
 #include <nlohmann/json.hpp>
 #ifdef __WIIU__
 #include <whb/sdcard.h>
@@ -253,10 +254,13 @@ void ProjectMenu::init() {
         hasProjects = true;
         playButton = new ButtonObject("Play (A)", "gfx/menu/optionBox.svg", 95, 230, "gfx/menu/Ubuntu-Bold");
         settingsButton = new ButtonObject("Settings (L)", "gfx/menu/optionBox.svg", 315, 230, "gfx/menu/Ubuntu-Bold");
+        downloadButton = new ButtonObject("Download (Start)", "gfx/menu/optionBox.svg", 95, 10, "gfx/menu/Ubuntu-Bold");
         playButton->scale = 0.6;
         settingsButton->scale = 0.6;
+        downloadButton->scale = 0.6;
         settingsButton->needsToBeSelected = false;
         playButton->needsToBeSelected = false;
+        downloadButton->needsToBeSelected = false;
     }
     isInitialized = true;
 }
@@ -287,6 +291,12 @@ void ProjectMenu::render() {
             MenuManager::changeMenu(MenuManager::previousMenu);
             return;
         }
+    }
+
+    if (downloadButton->isPressed({"1"})) {
+        DownloadMenu *download = new DownloadMenu();
+        MenuManager::changeMenu(download);
+        return;
     }
 
     if (backButton->isPressed({"b", "y"})) {
@@ -339,6 +349,7 @@ void ProjectMenu::render() {
         noProjectInfo->render(Render::getWidth() / 2, Render::getHeight() * 0.85);
         projectControl->render();
     }
+    downloadButton->render();
     backButton->render();
     Render::endFrame();
 }
@@ -743,5 +754,67 @@ void ControlsMenu::cleanup() {
     // Render::beginFrame(1, 181, 165, 111);
     // Input::getInput();
     // Render::endFrame();
+    isInitialized = false;
+}
+
+DownloadMenu::DownloadMenu() {
+    init();
+}
+
+DownloadMenu::~DownloadMenu() {
+    cleanup();
+}
+
+void DownloadMenu::init() {
+    input = new ButtonObject("Project ID...", "gfx/menu/optionBox.svg", 200, 50, "gfx/menu/Ubuntu-Bold");
+    selectScratchBox = new ButtonObject("ScratchBox [x]", "gfx/menu/projectBox.png", 100, 125, "gfx/menu/Ubuntu-Bold");
+    selectScratch = new ButtonObject("Scratch [ ]", "gfx/menu/projectBox.png", 300, 125, "gfx/menu/Ubuntu-Bold");
+    downloadButton = new ButtonObject("Download", "gfx/menu/projectBox.png", 200, 200, "gfx/menu/Ubuntu-Bold");
+
+    selectScratchBox->scale = 0.75;
+    selectScratch->scale = 0.75;
+    downloadButton->scale = 0.75;
+
+    selectScratchBox->text->setColor(Math::color(0, 0, 0, 255));
+    selectScratch->text->setColor(Math::color(0, 0, 0, 255));
+    downloadButton->text->setColor(Math::color(0, 0, 0, 255));
+
+    Render::renderMode = Render::BOTH_SCREENS;
+
+    isInitialized = true;
+}
+
+void DownloadMenu::render() {
+    Input::getInput();
+
+    Render::beginFrame(0, 181, 165, 111);
+    Render::beginFrame(1, 181, 165, 111);
+
+    input->render();
+    selectScratchBox->render();
+    selectScratch->render();
+    downloadButton->render();
+
+    Render::endFrame();
+}
+
+void DownloadMenu::cleanup() {
+    if (input != nullptr) {
+        delete input;
+        input = nullptr;
+    }
+    if (selectScratchBox != nullptr) {
+        delete selectScratchBox;
+        selectScratchBox = nullptr;
+    }
+    if (selectScratch != nullptr) {
+        delete selectScratch;
+        selectScratch = nullptr;
+    }
+    if (downloadButton != nullptr) {
+        delete downloadButton;
+        downloadButton = nullptr;
+    }
+
     isInitialized = false;
 }
