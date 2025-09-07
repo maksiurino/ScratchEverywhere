@@ -56,6 +56,7 @@ class ProjectMenu : public Menu {
     bool hasProjects;
     bool shouldGoBack = false;
     std::vector<ButtonObject *> projects;
+    std::vector<std::string> projectFiles;
 
     ControlObject *projectControl = nullptr;
     ButtonObject *backButton = nullptr;

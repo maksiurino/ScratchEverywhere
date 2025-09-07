@@ -7,6 +7,7 @@
 #include "../render.hpp"
 #include "../unzip.hpp"
 #include "menuObjects.hpp"
+#include <algorithm>
 #include <curl/curl.h>
 #include <curl/easy.h>
 #include <fstream>
@@ -190,13 +191,23 @@ void ProjectMenu::init() {
     backButton->needsToBeSelected = false;
     backButton->scale = 1.0;
 
-    std::vector<std::string> projectFiles;
     projectFiles = Unzip::getProjectFiles(OS::getScratchFolderLocation());
 
     // initialize text and set positions
     int yPosition = 120;
     for (std::string &file : projectFiles) {
-        ButtonObject *project = new ButtonObject(file.substr(0, file.length() - 4), "gfx/menu/projectBox.png", 0, yPosition, "gfx/menu/Ubuntu-Bold");
+        std::string projectName = file.substr(0, file.length() - 4);
+        std::ifstream projectInfoFile(OS::getScratchFolderLocation() + projectName + ".json");
+        if (projectInfoFile.good()) {
+            try {
+                nlohmann::json projectInfo = nlohmann::json::parse(projectInfoFile);
+                projectName = projectInfo["name"].get<std::string>();
+            } catch (const nlohmann::json::parse_error &e) {
+                Log::logError("JSON parse error: " + std::string(e.what()));
+            }
+        }
+
+        ButtonObject *project = new ButtonObject(projectName, "gfx/menu/projectBox.png", 0, yPosition, "gfx/menu/Ubuntu-Bold");
         project->text->setColor(Math::color(0, 0, 0, 255));
         project->canBeClicked = false;
         project->y -= project->text->getSize()[1] / 2;
@@ -279,13 +290,14 @@ void ProjectMenu::render() {
 
     if (hasProjects) {
         if (projectControl->selectedObject->isPressed({"a"}) || playButton->isPressed({"a"})) {
-            Unzip::filePath = projectControl->selectedObject->text->getText() + ".sb3";
+            auto it = std::find(projects.begin(), projects.end(), projectControl->selectedObject);
+            Unzip::filePath = projectFiles[it - projects.begin()];
             MenuManager::loadProject();
             return;
         }
         if (settingsButton->isPressed({"l"})) {
-            std::string selectedProject = projectControl->selectedObject->text->getText();
-            ProjectSettings *settings = new ProjectSettings(selectedProject);
+            auto it = std::find(projects.begin(), projects.end(), projectControl->selectedObject);
+            ProjectSettings *settings = new ProjectSettings(projectFiles[it - projects.begin()]);
             MenuManager::changeMenu(settings);
             return;
         }
@@ -496,7 +508,7 @@ ControlsMenu::~ControlsMenu() {
 
 void ControlsMenu::init() {
 
-    Unzip::filePath = projectPath + ".sb3";
+    Unzip::filePath = projectPath;
     if (!Unzip::load()) {
         Log::logError("Failed to load project for ControlsMenu.");
         toExit = true;
@@ -825,6 +837,8 @@ void DownloadMenu::render() {
         } else {
             downloadScratch();
         }
+        MenuManager::changeMenu(MenuManager::previousMenu);
+        return;
     }
 
     Render::beginFrame(0, 181, 165, 111);
@@ -861,6 +875,7 @@ void DownloadMenu::downloadFile(const std::string &url, const std::string &out) 
 }
 
 void DownloadMenu::downloadScratchBox() {
+    downloadFile("https://scratchbox.grady.link/api/project/" + projectId, projectId + ".json");
     downloadFile("https://scratchbox.grady.link/api/project/" + projectId + "/download", projectId + ".sb3");
 }
 
