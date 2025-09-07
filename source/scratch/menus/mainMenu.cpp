@@ -719,7 +719,7 @@ void ControlsMenu::render() {
 void ControlsMenu::applyControls() {
     // Build the file path
     std::string folderPath = OS::getScratchFolderLocation() + projectPath;
-    std::string filePath = folderPath + ".sb3" + ".json";
+    std::string filePath = folderPath + ".json";
 
     // Make sure parent directories exist
     try {
