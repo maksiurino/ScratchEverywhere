@@ -2,6 +2,7 @@
 #include "../os.hpp"
 #include "../text.hpp"
 #include "menuObjects.hpp"
+#include <curl/curl.h>
 
 class Menu {
   public:
@@ -134,6 +135,12 @@ class DownloadMenu : public Menu {
     ButtonObject *selectScratchBox = nullptr;
     ButtonObject *selectScratch = nullptr;
     ButtonObject *downloadButton = nullptr;
+
+    CURL *curl;
+
+    void downloadFile(const std::string &url, const std::string &out);
+    void downloadScratchBox();
+    void downloadScratch();
 
     void init() override;
     void render() override;

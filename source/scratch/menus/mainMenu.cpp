@@ -7,6 +7,10 @@
 #include "../render.hpp"
 #include "../unzip.hpp"
 #include "menuObjects.hpp"
+#include <curl/curl.h>
+#include <curl/easy.h>
+#include <fstream>
+#include <ios>
 #include <nlohmann/json.hpp>
 #ifdef __WIIU__
 #include <whb/sdcard.h>
@@ -767,6 +771,13 @@ DownloadMenu::~DownloadMenu() {
 }
 
 void DownloadMenu::init() {
+    curl = curl_easy_init();
+    if (!curl) {
+        Log::logError("Failed to initialize curl, returning to previous menu.");
+        MenuManager::changeMenu(MenuManager::previousMenu);
+        return;
+    }
+
     input = new ButtonObject("Project ID (A)", "gfx/menu/optionBox.svg", 200, 50, "gfx/menu/Ubuntu-Bold");
     selectScratchBox = new ButtonObject("ScratchBox [x]", "gfx/menu/projectBox.png", 100, 125, "gfx/menu/Ubuntu-Bold");
     selectScratch = new ButtonObject("Scratch [ ]", "gfx/menu/projectBox.png", 300, 125, "gfx/menu/Ubuntu-Bold");
@@ -808,6 +819,14 @@ void DownloadMenu::render() {
         projectSource = SCRATCH;
     }
 
+    if (downloadButton->isPressed({"1"})) {
+        if (projectSource == SCRATCHBOX) {
+            downloadScratchBox();
+        } else {
+            downloadScratch();
+        }
+    }
+
     Render::beginFrame(0, 181, 165, 111);
     Render::beginFrame(1, 181, 165, 111);
 
@@ -818,6 +837,34 @@ void DownloadMenu::render() {
 
     Render::endFrame();
 }
+
+void DownloadMenu::downloadFile(const std::string &url, const std::string &out) {
+    FILE *file = fopen((OS::getScratchFolderLocation() + out).c_str(), "wb");
+    if (!file) {
+        Log::logError("Could not open file for downloading.");
+        return;
+    }
+
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_NOBODY, 0);
+    curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, NULL);
+    curl_easy_setopt(curl, CURLOPT_HEADERDATA, NULL);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, NULL);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, file);
+
+    CURLcode res = curl_easy_perform(curl);
+    if (res != CURLE_OK) {
+        Log::logError("Download failed: " + std::string(curl_easy_strerror(res)));
+    }
+
+    fclose(file);
+}
+
+void DownloadMenu::downloadScratchBox() {
+    downloadFile("https://scratchbox.grady.link/api/project/" + projectId + "/download", projectId + ".sb3");
+}
+
+void DownloadMenu::downloadScratch() {};
 
 void DownloadMenu::cleanup() {
     if (input != nullptr) {
@@ -836,6 +883,8 @@ void DownloadMenu::cleanup() {
         delete downloadButton;
         downloadButton = nullptr;
     }
+
+    curl_easy_cleanup(curl);
 
     isInitialized = false;
 }
