@@ -13,6 +13,60 @@
 #include <whb/sdcard.h>
 #endif
 
+Menu::~Menu() = default;
+
+Menu *MenuManager::currentMenu = nullptr;
+Menu *MenuManager::previousMenu = nullptr;
+int MenuManager::isProjectLoaded = 0;
+
+void MenuManager::changeMenu(Menu *menu) {
+    // if (currentMenu != nullptr)
+    //     currentMenu->cleanup();
+
+    if (previousMenu != nullptr && previousMenu != menu) {
+        // delete previousMenu;
+        // previousMenu = nullptr;
+    }
+
+    if (menu != nullptr) {
+        previousMenu = currentMenu;
+        currentMenu = menu;
+        if (!currentMenu->isInitialized)
+            currentMenu->init();
+    } else {
+        currentMenu = nullptr;
+    }
+}
+
+void MenuManager::render() {
+    if (currentMenu && currentMenu != nullptr) {
+        currentMenu->render();
+    }
+}
+
+bool MenuManager::loadProject() {
+    if (currentMenu != nullptr) {
+        currentMenu->cleanup();
+        delete currentMenu;
+        currentMenu = nullptr;
+    }
+    if (previousMenu != nullptr) {
+        delete previousMenu;
+        previousMenu = nullptr;
+    }
+
+    Image::cleanupImages();
+    SoundPlayer::cleanupAudio();
+
+    if (!Unzip::load()) {
+        Log::logWarning("Could not load project. closing app.");
+        isProjectLoaded = -1;
+        return false;
+    }
+    isProjectLoaded = 1;
+    return true;
+}
+
 MainMenu::MainMenu() {
     init();
 }
@@ -20,69 +74,16 @@ MainMenu::~MainMenu() {
     cleanup();
 }
 
-bool MainMenu::activateMainMenu() {
-
-    if (projectType != UNEMBEDDED) return false;
-
-    Render::renderMode = Render::BOTH_SCREENS;
-
-    MainMenu menu;
-    bool isLoaded = false;
-    while (!isLoaded) {
-        menu.render();
-
-        if (menu.loadButton->isPressed()) {
-            menu.cleanup();
-            ProjectMenu projectMenu;
-
-            while (!projectMenu.shouldGoBack) {
-                projectMenu.render();
-
-                if (!Render::appShouldRun()) {
-                    Log::logWarning("App should close. cleaning up menu.");
-                    projectMenu.cleanup();
-                    menu.shouldExit = true;
-                    projectMenu.shouldGoBack = true;
-                }
-            }
-            projectMenu.cleanup();
-            menu.init();
-        }
-
-        if (!Render::appShouldRun() || menu.shouldExit) {
-            menu.cleanup();
-            Log::logWarning("app should exit. closing app.");
-            return false;
-        }
-
-        if (Unzip::filePath != "") {
-            menu.cleanup();
-            Image::cleanupImages();
-            SoundPlayer::cleanupAudio();
-            if (!Unzip::load()) {
-                Log::logWarning("Could not load project. closing app.");
-                return false;
-            }
-            isLoaded = true;
-        }
-    }
-    if (!Render::appShouldRun()) {
-        Log::logWarning("app should exit. closing app.");
-        menu.cleanup();
-        return false;
-    }
-    return true;
-}
-
 void MainMenu::init() {
 
     Input::applyControls();
+    Render::renderMode = Render::BOTH_SCREENS;
 
     logo = new MenuImage("gfx/menu/logo.png");
     logo->x = 200;
     logoStartTime.start();
 
-    versionNumber = createTextObject("Beta Build 21", 0, 0, "gfx/menu/Ubuntu-Bold");
+    versionNumber = createTextObject("Beta Build 22", 0, 0, "gfx/menu/Ubuntu-Bold");
     versionNumber->setCenterAligned(false);
     versionNumber->setScale(0.75);
 
@@ -102,6 +103,7 @@ void MainMenu::init() {
     // settingsButton->buttonLeft = loadButton;
     mainMenuControl->buttonObjects.push_back(loadButton);
     // mainMenuControl->buttonObjects.push_back(settingsButton);
+    isInitialized = true;
 }
 
 void MainMenu::render() {
@@ -109,13 +111,19 @@ void MainMenu::render() {
     Input::getInput();
     mainMenuControl->input();
 
+    if (loadButton->isPressed()) {
+        ProjectMenu *projectMenu = new ProjectMenu();
+        MenuManager::changeMenu(projectMenu);
+        return;
+    }
+
     // begin frame
     Render::beginFrame(0, 117, 77, 117);
 
     // move and render logo
     const float elapsed = logoStartTime.getTimeMs();
     float bobbingOffset = std::sin(elapsed * 0.0025f) * 5.0f;
-    float splashZoom = std::sin(elapsed * 0.0085f) * 0.01f;
+    float splashZoom = std::sin(elapsed * 0.0085f) * 0.005f;
     splashText->scale += splashZoom;
     logo->y = 75 + bobbingOffset;
     logo->render();
@@ -161,6 +169,7 @@ void MainMenu::cleanup() {
         delete splashText;
         splashText = nullptr;
     }
+    isInitialized = false;
 }
 
 ProjectMenu::ProjectMenu() {
@@ -252,6 +261,7 @@ void ProjectMenu::init() {
         settingsButton->needsToBeSelected = false;
         playButton->needsToBeSelected = false;
     }
+    isInitialized = true;
 }
 
 void ProjectMenu::render() {
@@ -264,30 +274,28 @@ void ProjectMenu::render() {
     if (hasProjects) {
         if (projectControl->selectedObject->isPressed({"a"}) || playButton->isPressed({"a"})) {
             Unzip::filePath = projectControl->selectedObject->text->getText() + ".sb3";
-            shouldGoBack = true;
+            MenuManager::loadProject();
             return;
         }
         if (settingsButton->isPressed({"l"})) {
             std::string selectedProject = projectControl->selectedObject->text->getText();
-            cleanup();
-            ProjectSettings settings(selectedProject);
-            while (settings.shouldGoBack == false && Render::appShouldRun()) {
-                settings.render();
-            }
-            settings.cleanup();
-            init();
+            ProjectSettings *settings = new ProjectSettings(selectedProject);
+            MenuManager::changeMenu(settings);
+            return;
         }
         targetY = projectControl->selectedObject->y;
         lerpSpeed = 0.1f;
     } else {
         if (noProjectsButton->isPressed({"a"})) {
-            shouldGoBack = true;
+            MenuManager::changeMenu(MenuManager::previousMenu);
             return;
         }
     }
 
     if (backButton->isPressed({"b", "y"})) {
-        shouldGoBack = true;
+        MainMenu *main = new MainMenu();
+        MenuManager::changeMenu(main);
+        return;
     }
 
     cameraY = cameraY + (targetY - cameraY) * lerpSpeed;
@@ -371,10 +379,11 @@ void ProjectMenu::cleanup() {
         delete noProjectInfo;
         noProjectInfo = nullptr;
     }
-    Render::beginFrame(0, 108, 100, 128);
-    Render::beginFrame(1, 108, 100, 128);
-    Input::getInput();
-    Render::endFrame();
+    // Render::beginFrame(0, 108, 100, 128);
+    // Render::beginFrame(1, 108, 100, 128);
+    // Input::getInput();
+    // Render::endFrame();
+    isInitialized = false;
 }
 
 ProjectSettings::ProjectSettings(std::string projPath) {
@@ -409,6 +418,7 @@ void ProjectSettings::init() {
     // add buttons to control
     settingsControl->buttonObjects.push_back(changeControlsButton);
     // settingsControl->buttonObjects.push_back(bottomScreenButton);
+    isInitialized = true;
 }
 void ProjectSettings::render() {
     Input::getInput();
@@ -416,17 +426,16 @@ void ProjectSettings::render() {
 
     if (changeControlsButton->isPressed({"a"})) {
         cleanup();
-        ControlsMenu controlsMenu(projectPath);
-        while (controlsMenu.shouldGoBack == false && Render::appShouldRun()) {
-            controlsMenu.render();
-        }
-        controlsMenu.cleanup();
-        init();
+        ControlsMenu *controlsMenu = new ControlsMenu(projectPath);
+        MenuManager::changeMenu(controlsMenu);
+        return;
     }
     // if (bottomScreenButton->isPressed()) {
     // }
     if (backButton->isPressed({"b", "y"})) {
-        shouldGoBack = true;
+        ProjectMenu *projectMenu = new ProjectMenu();
+        MenuManager::changeMenu(projectMenu);
+        return;
     }
 
     Render::beginFrame(0, 147, 138, 168);
@@ -456,10 +465,11 @@ void ProjectSettings::cleanup() {
         delete backButton;
         backButton = nullptr;
     }
-    Render::beginFrame(0, 147, 138, 168);
-    Render::beginFrame(1, 147, 138, 168);
-    Input::getInput();
-    Render::endFrame();
+    // Render::beginFrame(0, 147, 138, 168);
+    // Render::beginFrame(1, 147, 138, 168);
+    // Input::getInput();
+    // Render::endFrame();
+    isInitialized = false;
 }
 
 ControlsMenu::ControlsMenu(std::string projPath) {
@@ -526,7 +536,7 @@ void ControlsMenu::init() {
 
     if (controls.empty()) {
         Log::logWarning("No controls found in project");
-        shouldGoBack = true;
+        MenuManager::changeMenu(MenuManager::previousMenu);
         return;
     }
 
@@ -573,6 +583,8 @@ void ControlsMenu::init() {
     }
 
     Input::applyControls();
+    Render::renderMode = Render::BOTH_SCREENS;
+    isInitialized = true;
 }
 
 void ControlsMenu::render() {
@@ -580,12 +592,12 @@ void ControlsMenu::render() {
     settingsControl->input();
 
     if (backButton->isPressed({"b"})) {
-        shouldGoBack = true;
+        MenuManager::changeMenu(MenuManager::previousMenu);
         return;
     }
     if (applyButton->isPressed({"y"})) {
         applyControls();
-        shouldGoBack = true;
+        MenuManager::changeMenu(MenuManager::previousMenu);
         return;
     }
 
@@ -748,9 +760,9 @@ void ControlsMenu::cleanup() {
         delete applyButton;
         applyButton = nullptr;
     }
-    Render::beginFrame(0, 181, 165, 111);
-    Render::beginFrame(1, 181, 165, 111);
-    Input::getInput();
-    Render::endFrame();
-    Render::renderMode = Render::BOTH_SCREENS;
+    // Render::beginFrame(0, 181, 165, 111);
+    // Render::beginFrame(1, 181, 165, 111);
+    // Input::getInput();
+    // Render::endFrame();
+    isInitialized = false;
 }
