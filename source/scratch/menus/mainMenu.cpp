@@ -832,9 +832,10 @@ void DownloadMenu::render() {
     } */
 
     if (downloadButton->isPressed({"1"})) {
-        downloadFile("https://scratchbox.grady.link/api/project/" + projectId, projectId + ".sb.json");
+        downloadFile("https://scratchbox.grady.link/api/project/" + projectId, projectId + ".json");
         downloadFile("https://scratchbox.grady.link/api/project/" + projectId + "/download", projectId + ".sb3");
-        MenuManager::changeMenu(MenuManager::previousMenu);
+        ProjectMenu *projectMenu = new ProjectMenu();
+        MenuManager::changeMenu(projectMenu);
         return;
     }
 
