@@ -122,6 +122,14 @@ class DownloadMenu : public Menu {
     DownloadMenu();
     ~DownloadMenu();
 
+    enum ProjectSource {
+        SCRATCHBOX,
+        SCRATCH
+    };
+
+    std::string projectId;
+    ProjectSource projectSource = SCRATCHBOX;
+
     ButtonObject *input = nullptr;
     ButtonObject *selectScratchBox = nullptr;
     ButtonObject *selectScratch = nullptr;

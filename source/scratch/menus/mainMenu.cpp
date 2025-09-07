@@ -3,6 +3,7 @@
 #include "../image.hpp"
 #include "../input.hpp"
 #include "../interpret.hpp"
+#include "../keyboard.hpp"
 #include "../render.hpp"
 #include "../unzip.hpp"
 #include "menuObjects.hpp"
@@ -766,10 +767,15 @@ DownloadMenu::~DownloadMenu() {
 }
 
 void DownloadMenu::init() {
-    input = new ButtonObject("Project ID...", "gfx/menu/optionBox.svg", 200, 50, "gfx/menu/Ubuntu-Bold");
+    input = new ButtonObject("Project ID (A)", "gfx/menu/optionBox.svg", 200, 50, "gfx/menu/Ubuntu-Bold");
     selectScratchBox = new ButtonObject("ScratchBox [x]", "gfx/menu/projectBox.png", 100, 125, "gfx/menu/Ubuntu-Bold");
     selectScratch = new ButtonObject("Scratch [ ]", "gfx/menu/projectBox.png", 300, 125, "gfx/menu/Ubuntu-Bold");
-    downloadButton = new ButtonObject("Download", "gfx/menu/projectBox.png", 200, 200, "gfx/menu/Ubuntu-Bold");
+    downloadButton = new ButtonObject("Download (Start)", "gfx/menu/projectBox.png", 200, 200, "gfx/menu/Ubuntu-Bold");
+
+    input->needsToBeSelected = false;
+    selectScratchBox->needsToBeSelected = false;
+    selectScratch->needsToBeSelected = false;
+    downloadButton->needsToBeSelected = false;
 
     selectScratchBox->scale = 0.75;
     selectScratch->scale = 0.75;
@@ -786,6 +792,21 @@ void DownloadMenu::init() {
 
 void DownloadMenu::render() {
     Input::getInput();
+
+    if (input->isPressed({"a"})) {
+        Keyboard kbd;
+        projectId = kbd.openKeyboard("Enter a project Id");
+    }
+
+    if (selectScratchBox->isPressed({"left arrow"})) {
+        selectScratchBox->text->setText("ScratchBox [x]");
+        selectScratch->text->setText("Scratch [ ]");
+        projectSource = SCRATCHBOX;
+    } else if (selectScratch->isPressed({"right arrow"})) {
+        selectScratchBox->text->setText("ScratchBox [ ]");
+        selectScratch->text->setText("Scratch [x]");
+        projectSource = SCRATCH;
+    }
 
     Render::beginFrame(0, 181, 165, 111);
     Render::beginFrame(1, 181, 165, 111);
