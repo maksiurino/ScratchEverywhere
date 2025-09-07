@@ -136,6 +136,7 @@ class DownloadMenu : public Menu {
     // ButtonObject *selectScratchBox = nullptr;
     // ButtonObject *selectScratch = nullptr;
     ButtonObject *downloadButton = nullptr;
+    ButtonObject *backButton = nullptr;
 
     CURL *curl;
 

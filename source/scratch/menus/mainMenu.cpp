@@ -794,11 +794,13 @@ void DownloadMenu::init() {
     // selectScratchBox = new ButtonObject("ScratchBox [x]", "gfx/menu/projectBox.png", 100, 125, "gfx/menu/Ubuntu-Bold");
     // selectScratch = new ButtonObject("Scratch [ ]", "gfx/menu/projectBox.png", 300, 125, "gfx/menu/Ubuntu-Bold");
     downloadButton = new ButtonObject("Download (Start)", "gfx/menu/projectBox.png", 200, 170, "gfx/menu/Ubuntu-Bold");
+    backButton = new ButtonObject("", "gfx/menu/buttonBack.png", 375, 20, "gfx/menu/Ubuntu-Bold");
 
     input->needsToBeSelected = false;
     // selectScratchBox->needsToBeSelected = false;
     // selectScratch->needsToBeSelected = false;
     downloadButton->needsToBeSelected = false;
+    backButton->needsToBeSelected = false;
 
     // selectScratchBox->scale = 0.75;
     // selectScratch->scale = 0.75;
@@ -839,6 +841,11 @@ void DownloadMenu::render() {
         return;
     }
 
+    if (backButton->isPressed({"b", "y"})) {
+        MenuManager::changeMenu(MenuManager::previousMenu);
+        return;
+    }
+
     Render::beginFrame(0, 181, 165, 111);
     Render::beginFrame(1, 181, 165, 111);
 
@@ -846,6 +853,7 @@ void DownloadMenu::render() {
     // selectScratchBox->render();
     // selectScratch->render();
     downloadButton->render();
+    backButton->render();
 
     Render::endFrame();
 }
