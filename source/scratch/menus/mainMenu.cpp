@@ -790,22 +790,22 @@ void DownloadMenu::init() {
         return;
     }
 
-    input = new ButtonObject("Project ID (A)", "gfx/menu/optionBox.svg", 200, 50, "gfx/menu/Ubuntu-Bold");
-    selectScratchBox = new ButtonObject("ScratchBox [x]", "gfx/menu/projectBox.png", 100, 125, "gfx/menu/Ubuntu-Bold");
-    selectScratch = new ButtonObject("Scratch [ ]", "gfx/menu/projectBox.png", 300, 125, "gfx/menu/Ubuntu-Bold");
-    downloadButton = new ButtonObject("Download (Start)", "gfx/menu/projectBox.png", 200, 200, "gfx/menu/Ubuntu-Bold");
+    input = new ButtonObject("Project ID (A)", "gfx/menu/optionBox.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
+    // selectScratchBox = new ButtonObject("ScratchBox [x]", "gfx/menu/projectBox.png", 100, 125, "gfx/menu/Ubuntu-Bold");
+    // selectScratch = new ButtonObject("Scratch [ ]", "gfx/menu/projectBox.png", 300, 125, "gfx/menu/Ubuntu-Bold");
+    downloadButton = new ButtonObject("Download (Start)", "gfx/menu/projectBox.png", 200, 170, "gfx/menu/Ubuntu-Bold");
 
     input->needsToBeSelected = false;
-    selectScratchBox->needsToBeSelected = false;
-    selectScratch->needsToBeSelected = false;
+    // selectScratchBox->needsToBeSelected = false;
+    // selectScratch->needsToBeSelected = false;
     downloadButton->needsToBeSelected = false;
 
-    selectScratchBox->scale = 0.75;
-    selectScratch->scale = 0.75;
-    downloadButton->scale = 0.75;
+    // selectScratchBox->scale = 0.75;
+    // selectScratch->scale = 0.75;
+    // downloadButton->scale = 0.75;
 
-    selectScratchBox->text->setColor(Math::color(0, 0, 0, 255));
-    selectScratch->text->setColor(Math::color(0, 0, 0, 255));
+    // selectScratchBox->text->setColor(Math::color(0, 0, 0, 255));
+    // selectScratch->text->setColor(Math::color(0, 0, 0, 255));
     downloadButton->text->setColor(Math::color(0, 0, 0, 255));
 
     Render::renderMode = Render::BOTH_SCREENS;
@@ -821,7 +821,7 @@ void DownloadMenu::render() {
         projectId = kbd.openKeyboard("Enter a project Id");
     }
 
-    if (selectScratchBox->isPressed({"left arrow"})) {
+    /* if (selectScratchBox->isPressed({"left arrow"})) {
         selectScratchBox->text->setText("ScratchBox [x]");
         selectScratch->text->setText("Scratch [ ]");
         projectSource = SCRATCHBOX;
@@ -829,14 +829,11 @@ void DownloadMenu::render() {
         selectScratchBox->text->setText("ScratchBox [ ]");
         selectScratch->text->setText("Scratch [x]");
         projectSource = SCRATCH;
-    }
+    } */
 
     if (downloadButton->isPressed({"1"})) {
-        if (projectSource == SCRATCHBOX) {
-            downloadScratchBox();
-        } else {
-            downloadScratch();
-        }
+        downloadFile("https://scratchbox.grady.link/api/project/" + projectId, projectId + ".sb.json");
+        downloadFile("https://scratchbox.grady.link/api/project/" + projectId + "/download", projectId + ".sb3");
         MenuManager::changeMenu(MenuManager::previousMenu);
         return;
     }
@@ -845,8 +842,8 @@ void DownloadMenu::render() {
     Render::beginFrame(1, 181, 165, 111);
 
     input->render();
-    selectScratchBox->render();
-    selectScratch->render();
+    // selectScratchBox->render();
+    // selectScratch->render();
     downloadButton->render();
 
     Render::endFrame();
@@ -874,26 +871,19 @@ void DownloadMenu::downloadFile(const std::string &url, const std::string &out) 
     fclose(file);
 }
 
-void DownloadMenu::downloadScratchBox() {
-    downloadFile("https://scratchbox.grady.link/api/project/" + projectId, projectId + ".json");
-    downloadFile("https://scratchbox.grady.link/api/project/" + projectId + "/download", projectId + ".sb3");
-}
-
-void DownloadMenu::downloadScratch() {};
-
 void DownloadMenu::cleanup() {
     if (input != nullptr) {
         delete input;
         input = nullptr;
     }
-    if (selectScratchBox != nullptr) {
+    /* if (selectScratchBox != nullptr) {
         delete selectScratchBox;
         selectScratchBox = nullptr;
     }
     if (selectScratch != nullptr) {
         delete selectScratch;
         selectScratch = nullptr;
-    }
+    } */
     if (downloadButton != nullptr) {
         delete downloadButton;
         downloadButton = nullptr;

@@ -124,24 +124,24 @@ class DownloadMenu : public Menu {
     DownloadMenu();
     ~DownloadMenu();
 
-    enum ProjectSource {
+    /* enum ProjectSource {
         SCRATCHBOX,
         SCRATCH
-    };
+    }; */
 
     std::string projectId;
-    ProjectSource projectSource = SCRATCHBOX;
+    // ProjectSource projectSource = SCRATCHBOX;
 
     ButtonObject *input = nullptr;
-    ButtonObject *selectScratchBox = nullptr;
-    ButtonObject *selectScratch = nullptr;
+    // ButtonObject *selectScratchBox = nullptr;
+    // ButtonObject *selectScratch = nullptr;
     ButtonObject *downloadButton = nullptr;
 
     CURL *curl;
 
     void downloadFile(const std::string &url, const std::string &out);
-    void downloadScratchBox();
-    void downloadScratch();
+    // void downloadScratchBox();
+    // void downloadScratch();
 
     void init() override;
     void render() override;
