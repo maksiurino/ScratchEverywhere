@@ -2,6 +2,11 @@
 #include "../os.hpp"
 #include "../text.hpp"
 #include "menuObjects.hpp"
+
+#ifdef __3DS__
+#include <sys/select.h>
+#endif
+
 #include <curl/curl.h>
 
 class Menu {

@@ -8,8 +8,6 @@
 #include "../unzip.hpp"
 #include "menuObjects.hpp"
 #include <algorithm>
-#include <curl/curl.h>
-#include <curl/easy.h>
 #include <fstream>
 #include <ios>
 #include <nlohmann/json.hpp>
@@ -789,7 +787,7 @@ void DownloadMenu::init() {
         MenuManager::changeMenu(MenuManager::previousMenu);
         return;
     }
-#ifdef __WIIU__
+#if defined(__WIIU__) || defined(__3DS__)
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
 #endif
