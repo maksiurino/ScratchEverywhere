@@ -789,6 +789,10 @@ void DownloadMenu::init() {
         MenuManager::changeMenu(MenuManager::previousMenu);
         return;
     }
+#ifdef __WIIU__
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+#endif
 
     input = new ButtonObject("Project ID (A)", "gfx/menu/optionBox.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
     // selectScratchBox = new ButtonObject("ScratchBox [x]", "gfx/menu/projectBox.png", 100, 125, "gfx/menu/Ubuntu-Bold");
