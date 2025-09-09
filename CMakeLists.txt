@@ -18,7 +18,12 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 
 option(SE_ENABLE_AUDIO "Enables audio in SE!" ON)
 if(NINTENDO_3DS OR NINTENDO_WII OR NINTENDO_GAMECUBE)
-	option(SE_ENABLE_BUBBLES "Enables the bubbles loading screen." ON)
+	option(SE_ENABLE_BUBBLES "Enables the bubbles loading screen" ON)
+endif()
+if(NINTENDO_3DS)
+	option(SE_BANNERTOOL "Path to bannertool executable" bannertool)
+	option(SE_MAKEROM "Path to makerom executable" makerom)
+	set(SE_RAM 72 CACHE STRING "The amount of RAM to make available to SE! (MB)")
 endif()
 
 if(NINTENDO_3DS)
@@ -223,9 +228,33 @@ if (NINTENDO_WIIU)
 elseif(NINTENDO_3DS)
 	ctr_generate_smdh(OUTPUT scratch-everywhere.smdh NAME ${APP_NAME} AUTHOR "NateXS" ICON "${CMAKE_SOURCE_DIR}/gfx/icon.png" DESCRIPTION ${APP_DESCRIPTION})
 	ctr_create_3dsx(scratch-everywhere ROMFS ${CMAKE_CURRENT_SOURCE_DIR}/romfs SMDH scratch-everywhere.smdh)
+
+	# CIA
+	add_custom_command(
+		TARGET scratch-everywhere
+		POST_BUILD
+		COMMAND ${SE_BANNERTOOL}
+		ARGS makebanner -i "${CMAKE_SOURCE_DIR}/gfx/3ds/banner.png" -a "${CMAKE_SOURCE_DIR}/gfx/3ds/banner.wav" -o "banner.bnr"
+		COMMENT "Building banner.bnr..."
+	)
+	add_custom_command(
+		TARGET scratch-everywhere
+		POST_BUILD
+		COMMAND ${SE_BANNERTOOL}
+		ARGS makesmdh -s "${APP_NAME}" -l "${APP_DESCRIPTION}" -p "NateXS" -i "${CMAKE_SOURCE_DIR}/gfx/icon.png" -o "icon.smdh"
+		COMMENT "Building icon.smdh..."
+	)
+	configure_file("${CMAKE_SOURCE_DIR}/gfx/3ds/makerom.rsf.in" "${CMAKE_BINARY_DIR}/makerom.rsf") # For setting the amount of ram
+	add_custom_command(
+		TARGET scratch-everywhere
+		POST_BUILD
+		COMMAND ${SE_MAKEROM}
+		ARGS -f "cia" -o "scratch-everywhere.cia" -elf "scratch-everywhere.elf" -rsf "${CMAKE_BINARY_DIR}/makerom.rsf" -banner "banner.bnr" -icon icon.smdh -target t -exefslogo
+		COMMENT "Building scratch-everywhere.cia"
+	)
 elseif(NINTENDO_SWITCH)
 	nx_generate_nacp(OUTPUT scratch-everywhere.nacp NAME ${APP_NAME} AUTHOR "NateXS and Grady Link" VERSION ${CMAKE_PROJECT_VERSION})
-	nx_create_nro(scratch-everywhere ROMFS ${CMAKE_CURRENT_SOURCE_DIR}/romfs ICON "gfx/wiiu/icon.png" NACP scratch-everywhere.nacp)
+	nx_create_nro(scratch-everywhere ROMFS ${CMAKE_CURRENT_SOURCE_DIR}/romfs ICON "${CMAKE_SOURCE_DIR}/gfx/wiiu/icon.png" NACP scratch-everywhere.nacp)
 elseif(NINTENDO_WII)
 	file(GENERATE
 		OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/scratch-everywhere/meta.xml"
