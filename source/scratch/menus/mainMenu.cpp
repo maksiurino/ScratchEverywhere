@@ -10,6 +10,60 @@
 #include <whb/sdcard.h>
 #endif
 
+Menu::~Menu() = default;
+
+Menu *MenuManager::currentMenu = nullptr;
+Menu *MenuManager::previousMenu = nullptr;
+int MenuManager::isProjectLoaded = 0;
+
+void MenuManager::changeMenu(Menu *menu) {
+    if (currentMenu != nullptr)
+        currentMenu->cleanup();
+
+    if (previousMenu != nullptr && previousMenu != menu) {
+        delete previousMenu;
+        previousMenu = nullptr;
+    }
+
+    if (menu != nullptr) {
+        previousMenu = currentMenu;
+        currentMenu = menu;
+        if (!currentMenu->isInitialized)
+            currentMenu->init();
+    } else {
+        currentMenu = nullptr;
+    }
+}
+
+void MenuManager::render() {
+    if (currentMenu && currentMenu != nullptr) {
+        currentMenu->render();
+    }
+}
+
+bool MenuManager::loadProject() {
+    if (currentMenu != nullptr) {
+        currentMenu->cleanup();
+        delete currentMenu;
+        currentMenu = nullptr;
+    }
+    if (previousMenu != nullptr) {
+        delete previousMenu;
+        previousMenu = nullptr;
+    }
+
+    Image::cleanupImages();
+    SoundPlayer::cleanupAudio();
+
+    if (!Unzip::load()) {
+        Log::logWarning("Could not load project. closing app.");
+        isProjectLoaded = -1;
+        return false;
+    }
+    isProjectLoaded = 1;
+    return true;
+}
+
 MainMenu::MainMenu() {
     init();
 }
@@ -17,78 +71,36 @@ MainMenu::~MainMenu() {
     cleanup();
 }
 
-bool MainMenu::activateMainMenu() {
-
-    if (projectType != UNEMBEDDED) return false;
-
-    Render::renderMode = Render::BOTH_SCREENS;
-
-    MainMenu menu;
-    bool isLoaded = false;
-    while (!isLoaded) {
-        menu.render();
-
-        if (menu.loadButton->isPressed()) {
-            menu.cleanup();
-            ProjectMenu projectMenu;
-
-            while (!projectMenu.shouldGoBack) {
-                projectMenu.render();
-
-                if (!Render::appShouldRun()) {
-                    Log::logWarning("App should close. cleaning up menu.");
-                    projectMenu.cleanup();
-                    menu.shouldExit = true;
-                    projectMenu.shouldGoBack = true;
-                }
-            }
-            projectMenu.cleanup();
-            menu.init();
-        }
-
-        if (!Render::appShouldRun() || menu.shouldExit) {
-            menu.cleanup();
-            Log::logWarning("app should exit. closing app.");
-            return false;
-        }
-
-        if (Unzip::filePath != "") {
-            menu.cleanup();
-            Image::cleanupImages();
-            SoundPlayer::cleanupAudio();
-            if (!Unzip::load()) {
-                Log::logWarning("Could not load project. closing app.");
-                return false;
-            }
-            isLoaded = true;
-        }
-    }
-    if (!Render::appShouldRun()) {
-        Log::logWarning("app should exit. closing app.");
-        menu.cleanup();
-        return false;
-    }
-    return true;
-}
-
 void MainMenu::init() {
 
     Input::applyControls();
+    Render::renderMode = Render::BOTH_SCREENS;
 
-    logo = new MenuImage("gfx/logo.png");
+    logo = new MenuImage("gfx/menu/logo.png");
     logo->x = 200;
-
     logoStartTime.start();
 
-    loadButton = new ButtonObject("", "gfx/menu/play.png", 200, 180);
+    versionNumber = createTextObject("Beta Build 23 Nightly", 0, 0, "gfx/menu/Ubuntu-Bold");
+    versionNumber->setCenterAligned(false);
+    versionNumber->setScale(0.75);
+
+    splashText = createTextObject(Unzip::getSplashText(), 0, 0, "gfx/menu/Ubuntu-Bold");
+    splashText->setCenterAligned(true);
+    splashText->setColor(Math::color(243, 154, 37, 255));
+    if (splashText->getSize()[0] > logo->image->getWidth() * 0.95) {
+        splashText->scale = (float)logo->image->getWidth() / (splashText->getSize()[0] * 1.15);
+    }
+
+    loadButton = new ButtonObject("", "gfx/menu/play.png", 200, 180, "gfx/menu/Ubuntu-Bold");
     loadButton->isSelected = true;
-    // settingsButton = new ButtonObject("", "gfx/menu/settings.png", 300, 180);
+    // settingsButton = new ButtonObject("", "gfx/menu/settings.png", 300, 180, "gfx/menu/Ubuntu-Bold");
     mainMenuControl = new ControlObject();
     mainMenuControl->selectedObject = loadButton;
     // loadButton->buttonRight = settingsButton;
     // settingsButton->buttonLeft = loadButton;
     mainMenuControl->buttonObjects.push_back(loadButton);
     // mainMenuControl->buttonObjects.push_back(settingsButton);
+    isInitialized = true;
 }
 
 void MainMenu::render() {
@@ -96,14 +108,24 @@ void MainMenu::render() {
     Input::getInput();
     mainMenuControl->input();
 
+    if (loadButton->isPressed()) {
+        ProjectMenu *projectMenu = new ProjectMenu();
+        MenuManager::changeMenu(projectMenu);
+        return;
+    }
+
     // begin frame
     Render::beginFrame(0, 117, 77, 117);
 
     // move and render logo
     const float elapsed = logoStartTime.getTimeMs();
     float bobbingOffset = std::sin(elapsed * 0.0025f) * 5.0f;
+    float splashZoom = std::sin(elapsed * 0.0085f) * 0.005f;
+    splashText->scale += splashZoom;
     logo->y = 75 + bobbingOffset;
     logo->render();
+    versionNumber->render(Render::getWidth() * 0.01, Render::getHeight() * 0.935);
+    splashText->render(logo->renderX, logo->renderY + 85);
 
     // begin 3DS bottom screen frame
     Render::beginFrame(1, 117, 77, 117);
@@ -136,6 +158,15 @@ void MainMenu::cleanup() {
         delete mainMenuControl;
         mainMenuControl = nullptr;
     }
+    if (versionNumber) {
+        delete versionNumber;
+        versionNumber = nullptr;
+    }
+    if (splashText) {
+        delete splashText;
+        splashText = nullptr;
+    }
+    isInitialized = false;
 }
 
 ProjectMenu::ProjectMenu() {
@@ -149,17 +180,21 @@ ProjectMenu::~ProjectMenu() {
 void ProjectMenu::init() {
 
     projectControl = new ControlObject();
-    backButton = new ButtonObject("", "gfx/menu/buttonBack.png", 375, 20);
+    backButton = new ButtonObject("", "gfx/menu/buttonBack.png", 375, 20, "gfx/menu/Ubuntu-Bold");
     backButton->needsToBeSelected = false;
     backButton->scale = 1.0;
 
-    std::vector<std::string> projectFiles;
+
+
     projectFiles = Unzip::getProjectFiles(OS::getScratchFolderLocation());
+    UnzippedFiles = UnpackMenu::getJsonArray(OS::getScratchFolderLocation() + "UnpackedGames.json");
+
+
 
     // initialize text and set positions
     int yPosition = 120;
     for (std::string &file : projectFiles) {
-        ButtonObject *project = new ButtonObject(file.substr(0, file.length() - 4), "gfx/menu/projectBox.png", 0, yPosition);
+        ButtonObject *project = new ButtonObject(file.substr(0, file.length() - 4), "gfx/menu/projectBox.png", 0, yPosition, "gfx/menu/Ubuntu-Bold");
         project->text->setColor(Math::color(0, 0, 0, 255));
         project->canBeClicked = false;
         project->y -= project->text->getSize()[1] / 2;
@@ -171,6 +206,20 @@ void ProjectMenu::init() {
         projectControl->buttonObjects.push_back(project);
         yPosition += 50;
     }
+    for (std::string &file : UnzippedFiles) {
+        ButtonObject *project = new ButtonObject(file, "gfx/menu/projectBoxFast.png", 0, yPosition);
+        project->text->setColor(Math::color(0, 0, 0, 255));
+        project->canBeClicked = false;
+        project->y -= project->text->getSize()[1] / 2;
+        if (project->text->getSize()[0] > project->buttonTexture->image->getWidth() * 0.85) {
+            float scale = (float)project->buttonTexture->image->getWidth() / (project->text->getSize()[0] * 1.15);
+            project->textScale = scale;
+        }
+        projects.push_back(project);
+        projectControl->buttonObjects.push_back(project);
+        yPosition += 50;
+    }
+
     for (size_t i = 0; i < projects.size(); i++) {
         // Check if there's a project above
         if (i > 0) {
@@ -184,9 +233,9 @@ void ProjectMenu::init() {
     }
 
     // check if user has any projects
-    if (projectFiles.size() == 0) {
+    if (projectFiles.size() == 0 && UnzippedFiles.size() == 0) {
         hasProjects = false;
-        noProjectsButton = new ButtonObject("", "gfx/menu/noProjects.png", 200, 120);
+        noProjectsButton = new ButtonObject("", "gfx/menu/noProjects.png", 200, 120, "gfx/menu/Ubuntu-Bold");
         projectControl->selectedObject = noProjectsButton;
         projectControl->selectedObject->isSelected = true;
         noProjectsText = createTextObject("No Scratch projects found!", 0, 0);
@@ -220,13 +269,14 @@ void ProjectMenu::init() {
         projectControl->selectedObject->isSelected = true;
         cameraY = projectControl->selectedObject->y;
         hasProjects = true;
-        playButton = new ButtonObject("Play (A)", "gfx/menu/optionBox.svg", 95, 230);
-        settingsButton = new ButtonObject("Settings (L)", "gfx/menu/optionBox.svg", 315, 230);
+        playButton = new ButtonObject("Play (A)", "gfx/menu/optionBox.svg", 95, 230, "gfx/menu/Ubuntu-Bold");
+        settingsButton = new ButtonObject("Settings (L)", "gfx/menu/optionBox.svg", 315, 230, "gfx/menu/Ubuntu-Bold");
         playButton->scale = 0.6;
         settingsButton->scale = 0.6;
         settingsButton->needsToBeSelected = false;
         playButton->needsToBeSelected = false;
     }
+    isInitialized = true;
 }
 
 void ProjectMenu::render() {
@@ -238,31 +288,41 @@ void ProjectMenu::render() {
 
     if (hasProjects) {
         if (projectControl->selectedObject->isPressed({"a"}) || playButton->isPressed({"a"})) {
-            Unzip::filePath = projectControl->selectedObject->text->getText() + ".sb3";
-            shouldGoBack = true;
-            return;
+
+            if (projectControl->selectedObject->buttonTexture->image->imageId == "projectBoxFast") {
+                // Unpacked sb3
+                Unzip::filePath = projectControl->selectedObject->text->getText();
+                MenuManager::loadProject();
+                return;
+            } else {
+                // normal sb3
+                Unzip::filePath = projectControl->selectedObject->text->getText() + ".sb3";
+                MenuManager::loadProject();
+                return;
+            }
         }
         if (settingsButton->isPressed({"l"})) {
             std::string selectedProject = projectControl->selectedObject->text->getText();
-            cleanup();
-            ProjectSettings settings(selectedProject);
-            while (settings.shouldGoBack == false && Render::appShouldRun()) {
-                settings.render();
-            }
-            settings.cleanup();
-            init();
+            
+            UnzippedFiles = UnpackMenu::getJsonArray(OS::getScratchFolderLocation() + "UnpackedGames.json");
+          
+            ProjectSettings *settings = new ProjectSettings(selectedProject, (std::find(UnzippedFiles.begin(), UnzippedFiles.end(), selectedProject) != UnzippedFiles.end()));
+            MenuManager::changeMenu(settings);
+            return;
         }
         targetY = projectControl->selectedObject->y;
         lerpSpeed = 0.1f;
     } else {
         if (noProjectsButton->isPressed({"a"})) {
-            shouldGoBack = true;
+            MenuManager::changeMenu(MenuManager::previousMenu);
             return;
         }
     }
 
     if (backButton->isPressed({"b", "y"})) {
-        shouldGoBack = true;
+        MainMenu *main = new MainMenu();
+        MenuManager::changeMenu(main);
+        return;
     }
 
     cameraY = cameraY + (targetY - cameraY) * lerpSpeed;
@@ -299,7 +359,6 @@ void ProjectMenu::render() {
             targetScale = 0.0f;
         }
     }
-    backButton->render();
     if (hasProjects) {
         playButton->render();
         settingsButton->render();
@@ -310,11 +369,13 @@ void ProjectMenu::render() {
         noProjectInfo->render(Render::getWidth() / 2, Render::getHeight() * 0.85);
         projectControl->render();
     }
-
+    backButton->render();
     Render::endFrame();
 }
 
 void ProjectMenu::cleanup() {
+    projectFiles.clear();
+    UnzippedFiles.clear();
     for (ButtonObject *button : projects) {
         delete button;
     }
@@ -347,14 +408,17 @@ void ProjectMenu::cleanup() {
         delete noProjectInfo;
         noProjectInfo = nullptr;
     }
-    Render::beginFrame(0, 108, 100, 128);
-    Render::beginFrame(1, 108, 100, 128);
-    Input::getInput();
-    Render::endFrame();
+    // Render::beginFrame(0, 108, 100, 128);
+    // Render::beginFrame(1, 108, 100, 128);
+    // Input::getInput();
+    // Render::endFrame();
+    isInitialized = false;
 }
 
-ProjectSettings::ProjectSettings(std::string projPath) {
+ProjectSettings::ProjectSettings(std::string projPath, bool existUnpacked) {
+    Log::log(existUnpacked ? "ALREADY" : "NO");
     projectPath = projPath;
+    canUnpacked = !existUnpacked;
     init();
 }
 ProjectSettings::~ProjectSettings() {
@@ -363,18 +427,37 @@ ProjectSettings::~ProjectSettings() {
 
 void ProjectSettings::init() {
     // initialize
-    changeControlsButton = new ButtonObject("Change Controls", "gfx/menu/projectBox.png", 200, 100);
+  
+    changeControlsButton = new ButtonObject("Change Controls", "gfx/menu/projectBox.png", 200, 81, "gfx/menu/Ubuntu-Bold");
     changeControlsButton->text->setColor(Math::color(0, 0, 0, 255));
+    UnpackProjectButton = new ButtonObject("Unpack Project", "gfx/menu/projectBox.png", 200, 159, "gfx/menu/Ubuntu-Bold");
+    UnpackProjectButton->text->setColor(Math::color(0, 0, 0, 255));
+    DeleteUnpackProjectButton = new ButtonObject("Delete Unpacked Proj.", "gfx/menu/projectBox.png", 200, 159, "gfx/menu/Ubuntu-Bold");
+    DeleteUnpackProjectButton->text->setColor(Math::color(255, 0, 0, 255));
     // bottomScreenButton = new ButtonObject("Bottom Screen", "gfx/menu/projectBox.png", 200, 150);
     // bottomScreenButton->text->setColor(Math::color(0, 0, 0, 255));
+  
+  
     settingsControl = new ControlObject();
-    backButton = new ButtonObject("", "gfx/menu/buttonBack.png", 375, 20);
+    backButton = new ButtonObject("", "gfx/menu/buttonBack.png", 375, 20, "gfx/menu/Ubuntu-Bold");
     backButton->scale = 1.0;
     backButton->needsToBeSelected = false;
 
     // initial selected object
     settingsControl->selectedObject = changeControlsButton;
     changeControlsButton->isSelected = true;
+
+    if (canUnpacked) {
+        changeControlsButton->buttonDown = UnpackProjectButton;
+        changeControlsButton->buttonUp = UnpackProjectButton;
+        UnpackProjectButton->buttonUp = changeControlsButton;
+        UnpackProjectButton->buttonDown = changeControlsButton;
+    } else {
+        changeControlsButton->buttonDown = DeleteUnpackProjectButton;
+        changeControlsButton->buttonUp = DeleteUnpackProjectButton;
+        DeleteUnpackProjectButton->buttonUp = changeControlsButton;
+        DeleteUnpackProjectButton->buttonDown = changeControlsButton;
+    }
 
     // link buttons
     // changeControlsButton->buttonDown = bottomScreenButton;
@@ -384,7 +467,9 @@ void ProjectSettings::init() {
 
     // add buttons to control
     settingsControl->buttonObjects.push_back(changeControlsButton);
+    settingsControl->buttonObjects.push_back(UnpackProjectButton);
     // settingsControl->buttonObjects.push_back(bottomScreenButton);
+    isInitialized = true;
 }
 void ProjectSettings::render() {
     Input::getInput();
@@ -392,23 +477,50 @@ void ProjectSettings::render() {
 
     if (changeControlsButton->isPressed({"a"})) {
         cleanup();
-        ControlsMenu controlsMenu(projectPath);
-        while (controlsMenu.shouldGoBack == false && Render::appShouldRun()) {
-            controlsMenu.render();
-        }
-        controlsMenu.cleanup();
-        init();
+        ControlsMenu *controlsMenu = new ControlsMenu(projectPath);
+        MenuManager::changeMenu(controlsMenu);
+        return;
     }
     // if (bottomScreenButton->isPressed()) {
     // }
+    if (UnpackProjectButton->isPressed({"a"}) && canUnpacked) {
+        cleanup();
+        UnpackMenu unpackMenu;
+        unpackMenu.render();
+        
+        Unzip::extractProject(OS::getScratchFolderLocation()+ projectPath + ".sb3", OS::getScratchFolderLocation() + projectPath);
+
+        unpackMenu.addToJsonArray(OS::getScratchFolderLocation() + "UnpackedGames.json", projectPath);
+        unpackMenu.cleanup();
+        ProjectMenu *projectMenu = new ProjectMenu();
+        MenuManager::changeMenu(projectMenu);
+        return;
+    }
+
+    if (DeleteUnpackProjectButton->isPressed({"a"}) && !canUnpacked) {
+        cleanup();
+        UnpackMenu unpackMenu;
+        unpackMenu.render();
+        Unzip::deleteProjectFolder(OS::getScratchFolderLocation() + projectPath);
+        unpackMenu.removeFromJsonArray(OS::getScratchFolderLocation() + "UnpackedGames.json", projectPath);
+        unpackMenu.cleanup();
+        ProjectMenu *projectMenu = new ProjectMenu();
+        MenuManager::changeMenu(projectMenu);
+        return;
+    }
+
     if (backButton->isPressed({"b", "y"})) {
-        shouldGoBack = true;
+        ProjectMenu *projectMenu = new ProjectMenu();
+        MenuManager::changeMenu(projectMenu);
+        return;
     }
 
     Render::beginFrame(0, 147, 138, 168);
     Render::beginFrame(1, 147, 138, 168);
 
     changeControlsButton->render();
+    if (canUnpacked) UnpackProjectButton->render();
+    if (!canUnpacked) DeleteUnpackProjectButton->render();
     // bottomScreenButton->render();
     settingsControl->render();
     backButton->render();
@@ -419,6 +531,10 @@ void ProjectSettings::cleanup() {
     if (changeControlsButton != nullptr) {
         delete changeControlsButton;
         changeControlsButton = nullptr;
+    }
+    if (UnpackProjectButton != nullptr) {
+        delete UnpackProjectButton;
+        UnpackProjectButton = nullptr;
     }
     if (bottomScreenButton != nullptr) {
         delete bottomScreenButton;
@@ -432,10 +548,11 @@ void ProjectSettings::cleanup() {
         delete backButton;
         backButton = nullptr;
     }
-    Render::beginFrame(0, 147, 138, 168);
-    Render::beginFrame(1, 147, 138, 168);
-    Input::getInput();
-    Render::endFrame();
+    // Render::beginFrame(0, 147, 138, 168);
+    // Render::beginFrame(1, 147, 138, 168);
+    // Input::getInput();
+    // Render::endFrame();
+    isInitialized = false;
 }
 
 ControlsMenu::ControlsMenu(std::string projPath) {
@@ -467,18 +584,19 @@ void ControlsMenu::init() {
 
                 // stolen code from sensing.cpp
 
-                auto inputFind = block.parsedInputs.find("KEY_OPTION");
+                auto inputFind = block.parsedInputs->find("KEY_OPTION");
                 // if no variable block is in the input
                 if (inputFind->second.inputType == ParsedInput::LITERAL) {
                     Block *inputBlock = findBlock(inputFind->second.literalValue.asString());
-                    if (!inputBlock->fields["KEY_OPTION"][0].is_null())
-                        buttonCheck = inputBlock->fields["KEY_OPTION"][0];
+                    if (Scratch::getFieldValue(*inputBlock, "KEY_OPTION") != "")
+                        buttonCheck = Scratch::getFieldValue(*inputBlock, "KEY_OPTION");
                 } else {
                     buttonCheck = Scratch::getInputValue(block, "KEY_OPTION", sprite).asString();
                 }
 
             } else if (block.opcode == "event_whenkeypressed") {
-                buttonCheck = block.fields.at("KEY_OPTION")[0];
+                buttonCheck = Scratch::getFieldValue(block, "KEY_OPTION");
+                ;
             } else continue;
             if (buttonCheck != "" && std::find(controls.begin(), controls.end(), buttonCheck) == controls.end()) {
                 Log::log("Found new control: " + buttonCheck);
@@ -492,8 +610,8 @@ void ControlsMenu::init() {
 
     settingsControl = new ControlObject();
     settingsControl->selectedObject = nullptr;
-    backButton = new ButtonObject("", "gfx/menu/buttonBack.png", 375, 20);
-    applyButton = new ButtonObject("Apply (Y)", "gfx/menu/optionBox.svg", 200, 230);
+    backButton = new ButtonObject("", "gfx/menu/buttonBack.png", 375, 20, "gfx/menu/Ubuntu-Bold");
+    applyButton = new ButtonObject("Apply (Y)", "gfx/menu/optionBox.svg", 200, 230, "gfx/menu/Ubuntu-Bold");
     applyButton->scale = 0.6;
     applyButton->needsToBeSelected = false;
     backButton->scale = 1.0;
@@ -501,14 +619,14 @@ void ControlsMenu::init() {
 
     if (controls.empty()) {
         Log::logWarning("No controls found in project");
-        shouldGoBack = true;
+        MenuManager::changeMenu(MenuManager::previousMenu);
         return;
     }
 
     double yPosition = 100;
     for (auto &control : controls) {
         key newControl;
-        ButtonObject *controlButton = new ButtonObject(control, "gfx/menu/optionBox.svg", 0, yPosition);
+        ButtonObject *controlButton = new ButtonObject(control, "gfx/menu/optionBox.svg", 0, yPosition, "gfx/menu/Ubuntu-Bold");
         controlButton->text->setColor(Math::color(255, 255, 255, 255));
         controlButton->scale = 0.6;
         controlButton->y -= controlButton->text->getSize()[1] / 2;
@@ -548,6 +666,8 @@ void ControlsMenu::init() {
     }
 
     Input::applyControls();
+    Render::renderMode = Render::BOTH_SCREENS;
+    isInitialized = true;
 }
 
 void ControlsMenu::render() {
@@ -555,12 +675,12 @@ void ControlsMenu::render() {
     settingsControl->input();
 
     if (backButton->isPressed({"b"})) {
-        shouldGoBack = true;
+        MenuManager::changeMenu(MenuManager::previousMenu);
         return;
     }
     if (applyButton->isPressed({"y"})) {
         applyControls();
-        shouldGoBack = true;
+        MenuManager::changeMenu(MenuManager::previousMenu);
         return;
     }
 
@@ -705,9 +825,119 @@ void ControlsMenu::cleanup() {
         delete applyButton;
         applyButton = nullptr;
     }
+    // Render::beginFrame(0, 181, 165, 111);
+    // Render::beginFrame(1, 181, 165, 111);
+    // Input::getInput();
+    // Render::endFrame();
+    isInitialized = false;
+}
+
+UnpackMenu::UnpackMenu() {
+    init();
+}
+
+UnpackMenu::~UnpackMenu() {
+    cleanup();
+}
+
+void UnpackMenu::init() {
+    Render::renderMode = Render::BOTH_SCREENS;
+
+    infoText = createTextObject("Please wait a moment", 200.0, 100.0);
+    infoText->setScale(1.5f);
+    infoText->setCenterAligned(true);
+    descText = createTextObject("Do not turn off the device", 200.0, 150.0);
+    descText->setScale(0.8f);
+    descText->setCenterAligned(true);
+}
+
+void UnpackMenu::render() {
+
+    Render::beginFrame(0, 181, 165, 111);
+    infoText->render(200, 110);
+    descText->render(200, 140);
+
+    Render::beginFrame(1, 181, 165, 111);
+
+    Render::endFrame();
+}
+
+void UnpackMenu::cleanup() {
+
+    if (infoText != nullptr) {
+        delete infoText;
+        infoText = nullptr;
+    }
+
+    if (descText != nullptr) {
+        delete descText;
+        descText = nullptr;
+    }
+
     Render::beginFrame(0, 181, 165, 111);
     Render::beginFrame(1, 181, 165, 111);
-    Input::getInput();
     Render::endFrame();
     Render::renderMode = Render::BOTH_SCREENS;
+}
+
+void UnpackMenu::addToJsonArray(const std::string &filePath, const std::string &value) {
+    nlohmann::json j;
+
+    std::ifstream inFile(filePath);
+    if (inFile) {
+        inFile >> j;
+    }
+    inFile.close();
+
+    if (!j.contains("items") || !j["items"].is_array()) {
+        j["items"] = nlohmann::json::array();
+    }
+
+    j["items"].push_back(value);
+
+    std::filesystem::create_directories(std::filesystem::path(filePath).parent_path());
+
+    std::ofstream outFile(filePath);
+    if (!outFile) {
+        std::cerr << "Failed to write JSON file: " << filePath << std::endl;
+        return;
+    }
+    outFile << j.dump(2);
+    outFile.close();
+}
+
+std::vector<std::string> UnpackMenu::getJsonArray(const std::string &filePath) {
+    std::vector<std::string> result;
+    std::ifstream inFile(filePath);
+    if (!inFile) return result;
+
+    nlohmann::json j;
+    inFile >> j;
+    inFile.close();
+
+    if (j.contains("items") && j["items"].is_array()) {
+        for (const auto &el : j["items"]) {
+            result.push_back(el.get<std::string>());
+        }
+    }
+    return result;
+}
+
+void UnpackMenu::removeFromJsonArray(const std::string &filePath, const std::string &value) {
+    std::ifstream inFile(filePath);
+    if (!inFile) return;
+
+    nlohmann::json j;
+    inFile >> j;
+    inFile.close();
+
+    if (j.contains("items") && j["items"].is_array()) {
+        auto &arr = j["items"];
+        arr.erase(std::remove(arr.begin(), arr.end(), value), arr.end());
+    }
+
+    std::ofstream outFile(filePath);
+    if (!outFile) return;
+    outFile << j.dump(2);
+    outFile.close();
 }
