@@ -132,6 +132,8 @@ bool Render::Init() {
     accountProfileClose(&profile);
     accountExit();
 postAccount:
+
+    socketInitializeDefault();
 #elif defined(__OGC__)
     SYS_STDIO_Report(true);
 
@@ -204,6 +206,8 @@ void Render::deInit() {
 
     sceHttpTerm();
     sceSysmoduleUnloadModule(SCE_SYSMODULE_HTTP);
+#elif defined(__SWITCH__)
+    socketExit();
 #endif
 }
 
