@@ -95,7 +95,23 @@ endforeach()
 
 list(APPEND SOURCE_FILES "${miniz_SOURCE_DIR}/miniz.c")
 
-add_executable(scratch-everywhere ${SOURCE_FILES})
+if(NINTENDO_3DS)
+	set(TARGET_NAME "scratch-3ds")
+elseif(NINTENDO_WIIU)
+	set(TARGET_NAME "scratch-wiiu")
+elseif(NINTENDO_SWITCH)
+	set(TARGET_NAME "scratch-nx")
+elseif(NINTENDO_WII)
+	set(TARGET_NAME "scratch-wii")
+elseif(NINTENDO_GAMECUBE)
+	set(TARGET_NAME "scratch-gamecube")
+elseif(VITA)
+	set(TARGET_NAME "scratch-vita")
+else()
+	set(TARGET_NAME "scratch-pc")
+endif()
+
+add_executable(${TARGET_NAME} ${SOURCE_FILES})
 
 # Copy graphics files to romfs
 file(GLOB_RECURSE GFXFILES "${CMAKE_SOURCE_DIR}/gfx/*")
@@ -116,65 +132,65 @@ endif()
 
 if(NINTENDO_WIIU)
 	include("${DEVKITPRO}/portlibs/wiiu/share/romfs-wiiu.cmake" REQUIRED)
-	romfs_add(scratch-everywhere "romfs")
+	romfs_add(${TARGET_NAME} "romfs")
 elseif(NINTENDO_WII)
 	include("${DEVKITPRO}/portlibs/wii/share/romfs-ogc.cmake" REQUIRED)
-	romfs_add(scratch-everywhere "romfs")
+	romfs_add(${TARGET_NAME} "romfs")
 elseif(NINTENDO_GAMECUBE)
 	include("${DEVKITPRO}/portlibs/gamecube/share/romfs-ogc.cmake" REQUIRED)
-	romfs_add(scratch-everywhere "romfs")
+	romfs_add(${TARGET_NAME} "romfs")
 endif()
 
 if(NOT NINTENDO_3DS)
-	target_include_directories(scratch-everywhere PRIVATE
+	target_include_directories(${TARGET_NAME} PRIVATE
 		${SDL2_INCLUDE_DIRS}
 	    ${SDL2_IMAGE_INCLUDE_DIRS}
 	    ${SDL2_TTF_INCLUDE_DIRS}
 	)
 
-	target_link_libraries(scratch-everywhere
+	target_link_libraries(${TARGET_NAME}
 	    ${SDL2_LIBRARIES}
 		${SDL2_IMAGE_LIBRARIES}
 	    ${SDL2_TTF_LIBRARIES}
 	)
 
 	if(SE_ENABLE_AUDIO)
-		target_include_directories(scratch-everywhere PRIVATE ${SDL2_MIXER_INCLUDE_DIRS})
-		target_link_libraries(scratch-everywhere ${SDL2_MIXER_LIBRARIES})
+		target_include_directories(${TARGET_NAME} PRIVATE ${SDL2_MIXER_INCLUDE_DIRS})
+		target_link_libraries(${TARGET_NAME} ${SDL2_MIXER_LIBRARIES})
 	endif()
 endif()
 
 # TODO: add cloud variable support
 
 if(NINTENDO_WIIU OR NINTENDO_SWITCH OR NINTENDO_WII OR NINTENDO_GAMECUBE)
-	target_compile_definitions(scratch-everywhere PRIVATE SDL_BUILD)
+	target_compile_definitions(${TARGET_NAME} PRIVATE SDL_BUILD)
 elseif(VITA)
-	target_compile_definitions(scratch-everywhere PRIVATE VITA SDL_BUILD)
+	target_compile_definitions(${TARGET_NAME} PRIVATE VITA SDL_BUILD)
 elseif(NOT NINTENDO_3DS)
-	target_compile_definitions(scratch-everywhere PRIVATE __PC__ SDL_BUILD)
+	target_compile_definitions(${TARGET_NAME} PRIVATE __PC__ SDL_BUILD)
 endif()
 
 if(SE_ENABLE_AUDIO)
-	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_AUDIO)
+	target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_AUDIO)
 endif()
 if (SE_ENABLE_BUBBLES)
-	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_BUBBLES)
+	target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_BUBBLES)
 endif()
 
-target_link_libraries(scratch-everywhere nlohmann_json::nlohmann_json)
+target_link_libraries(${TARGET_NAME} nlohmann_json::nlohmann_json)
 
 
 if(NINTENDO_3DS)
-	target_link_libraries(scratch-everywhere nanosvg citro2d citro3d)
+	target_link_libraries(${TARGET_NAME} nanosvg citro2d citro3d)
 	if (SE_ENABLE_AUDIO)
-		target_link_libraries(scratch-everywhere SDL2::SDL2 SDL2_mixer::SDL2_mixer-static)
+		target_link_libraries(${TARGET_NAME} SDL2::SDL2 SDL2_mixer::SDL2_mixer-static)
 	endif()
 endif()
 
 if(NINTENDO_3DS)
-	target_include_directories(scratch-everywhere PRIVATE ${SOURCES} ${miniz_SOURCE_DIR} "${nanosvg_SOURCE_DIR}/src" ${stb_SOURCE_DIR})
+	target_include_directories(${TARGET_NAME} PRIVATE ${SOURCES} ${miniz_SOURCE_DIR} "${nanosvg_SOURCE_DIR}/src" ${stb_SOURCE_DIR})
 else()
-	target_include_directories(scratch-everywhere PRIVATE ${SOURCES} ${miniz_SOURCE_DIR})
+	target_include_directories(${TARGET_NAME} PRIVATE ${SOURCES} ${miniz_SOURCE_DIR})
 endif()
 
 set(APP_NAME "Scratch Everywhere!")
@@ -191,8 +207,8 @@ execute_process(
 string(REPLACE "\"" "" BUILD_TIMESTAMP "${BUILD_TIMESTAMP}")
 
 if (NINTENDO_WIIU)
-	wut_create_rpx(scratch-everywhere)
-	wut_create_wuhb(scratch-everywhere
+	wut_create_rpx(${TARGET_NAME})
+	wut_create_wuhb(${TARGET_NAME}
 		NAME "Scratch Everywhere!"
 		AUTHOR "NateXS and Grady Link"
 		ICON "gfx/wiiu/icon.png"
@@ -200,7 +216,7 @@ if (NINTENDO_WIIU)
 		DRCSPLASH "gfx/wiiu/drc-splash.png"
 	)
 	file(GENERATE
-		OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/scratch-everywhere/meta.xml"
+		OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}/meta.xml"
 		CONTENT "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>
 <app version=\"1\">
     <name>${APP_NAME}</name>
@@ -212,34 +228,34 @@ if (NINTENDO_WIIU)
 </app>"
 	)
 	add_custom_command(
-		TARGET scratch-everywhere
+		TARGET ${TARGET_NAME}
 		POST_BUILD
 		COMMAND ${CMAKE_COMMAND} -E copy
-		ARGS "${CMAKE_BINARY_DIR}/scratch-everywhere.wuhb" "${CMAKE_BINARY_DIR}/scratch-everywhere/scratch-everywhere.wuhb"
-		COMMENT "Packaging 'scratch-everywhere.wuhb'..."
+		ARGS "${CMAKE_BINARY_DIR}/${TARGET_NAME}.wuhb" "${CMAKE_BINARY_DIR}/${TARGET_NAME}/${TARGET_NAME}.wuhb"
+		COMMENT "Packaging '${TARGET_NAME}.wuhb'..."
 	)
 	add_custom_command(
-		TARGET scratch-everywhere
+		TARGET ${TARGET_NAME}
 		POST_BUILD
 		COMMAND ${CMAKE_COMMAND} -E copy
-		ARGS "${CMAKE_BINARY_DIR}/scratch-everywhere.rpx" "${CMAKE_BINARY_DIR}/scratch-everywhere/scratch-everywhere.rpx"
-		COMMENT "Packaging 'scratch-everywhere.rpx'..."
+		ARGS "${CMAKE_BINARY_DIR}/${TARGET_NAME}.rpx" "${CMAKE_BINARY_DIR}/${TARGET_NAME}/${TARGET_NAME}.rpx"
+		COMMENT "Packaging '${TARGET_NAME}.rpx'..."
 	)
-	configure_file("${CMAKE_SOURCE_DIR}/gfx/wiiu/hbl-icon.png" "${CMAKE_BINARY_DIR}/scratch-everywhere/icon.png" COPYONLY)
+	configure_file("${CMAKE_SOURCE_DIR}/gfx/wiiu/hbl-icon.png" "${CMAKE_BINARY_DIR}/${TARGET_NAME}/icon.png" COPYONLY)
 elseif(NINTENDO_3DS)
-	ctr_generate_smdh(OUTPUT scratch-everywhere.smdh NAME ${APP_NAME} AUTHOR "NateXS" ICON "${CMAKE_SOURCE_DIR}/gfx/icon.png" DESCRIPTION ${APP_DESCRIPTION})
-	ctr_create_3dsx(scratch-everywhere ROMFS ${CMAKE_CURRENT_SOURCE_DIR}/romfs SMDH scratch-everywhere.smdh)
+	ctr_generate_smdh(OUTPUT ${TARGET_NAME}.smdh NAME ${APP_NAME} AUTHOR "NateXS" ICON "${CMAKE_SOURCE_DIR}/gfx/icon.png" DESCRIPTION ${APP_DESCRIPTION})
+	ctr_create_3dsx(${TARGET_NAME} ROMFS ${CMAKE_CURRENT_SOURCE_DIR}/romfs SMDH ${TARGET_NAME}.smdh)
 
 	# CIA
 	add_custom_command(
-		TARGET scratch-everywhere
+		TARGET ${TARGET_NAME}
 		POST_BUILD
 		COMMAND ${SE_BANNERTOOL}
 		ARGS makebanner -i "${CMAKE_SOURCE_DIR}/gfx/3ds/banner.png" -a "${CMAKE_SOURCE_DIR}/gfx/3ds/banner.wav" -o "banner.bnr"
 		COMMENT "Building banner.bnr..."
 	)
 	add_custom_command(
-		TARGET scratch-everywhere
+		TARGET ${TARGET_NAME}
 		POST_BUILD
 		COMMAND ${SE_BANNERTOOL}
 		ARGS makesmdh -s "${APP_NAME}" -l "${APP_DESCRIPTION}" -p "NateXS" -i "${CMAKE_SOURCE_DIR}/gfx/icon.png" -o "icon.smdh"
@@ -247,18 +263,18 @@ elseif(NINTENDO_3DS)
 	)
 	configure_file("${CMAKE_SOURCE_DIR}/gfx/3ds/makerom.rsf.in" "${CMAKE_BINARY_DIR}/makerom.rsf") # For setting the amount of ram
 	add_custom_command(
-		TARGET scratch-everywhere
+		TARGET ${TARGET_NAME}
 		POST_BUILD
 		COMMAND ${SE_MAKEROM}
-		ARGS -f "cia" -o "scratch-everywhere.cia" -elf "scratch-everywhere.elf" -rsf "${CMAKE_BINARY_DIR}/makerom.rsf" -banner "banner.bnr" -icon icon.smdh -target t -exefslogo
-		COMMENT "Building scratch-everywhere.cia"
+		ARGS -f "cia" -o "${TARGET_NAME}.cia" -elf "${TARGET_NAME}.elf" -rsf "${CMAKE_BINARY_DIR}/makerom.rsf" -banner "banner.bnr" -icon icon.smdh -target t -exefslogo
+		COMMENT "Building ${TARGET_NAME}.cia"
 	)
 elseif(NINTENDO_SWITCH)
-	nx_generate_nacp(OUTPUT scratch-everywhere.nacp NAME ${APP_NAME} AUTHOR "NateXS and Grady Link" VERSION ${CMAKE_PROJECT_VERSION})
-	nx_create_nro(scratch-everywhere ROMFS ${CMAKE_CURRENT_SOURCE_DIR}/romfs ICON "${CMAKE_SOURCE_DIR}/gfx/wiiu/icon.png" NACP scratch-everywhere.nacp)
+	nx_generate_nacp(OUTPUT ${TARGET_NAME}.nacp NAME ${APP_NAME} AUTHOR "NateXS and Grady Link" VERSION ${CMAKE_PROJECT_VERSION})
+	nx_create_nro(${TARGET_NAME} ROMFS ${CMAKE_CURRENT_SOURCE_DIR}/romfs ICON "${CMAKE_SOURCE_DIR}/gfx/wiiu/icon.png" NACP ${TARGET_NAME}.nacp)
 elseif(NINTENDO_WII)
 	file(GENERATE
-		OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/scratch-everywhere/meta.xml"
+		OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}/meta.xml"
 		CONTENT "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>
 <app version=\"1\">
     <name>${APP_NAME}</name>
@@ -270,17 +286,17 @@ elseif(NINTENDO_WII)
 </app>"
 	)
 
-	ogc_create_dol(scratch-everywhere)
+	ogc_create_dol(${TARGET_NAME})
 	add_custom_command(
-		TARGET scratch-everywhere
+		TARGET ${TARGET_NAME}
 		POST_BUILD
 		COMMAND ${CMAKE_COMMAND} -E copy
-		ARGS "${CMAKE_BINARY_DIR}/scratch-everywhere.dol" "${CMAKE_BINARY_DIR}/scratch-everywhere/boot.dol"
-		COMMENT "Packaging 'scratch-everywhere.dol'..."
+		ARGS "${CMAKE_BINARY_DIR}/${TARGET_NAME}.dol" "${CMAKE_BINARY_DIR}/${TARGET_NAME}/boot.dol"
+		COMMENT "Packaging '${TARGET_NAME}.dol'..."
 	)
-	configure_file("${CMAKE_SOURCE_DIR}/gfx/wii/icon.png" "${CMAKE_BINARY_DIR}/scratch-everywhere/icon.png" COPYONLY)
+	configure_file("${CMAKE_SOURCE_DIR}/gfx/wii/icon.png" "${CMAKE_BINARY_DIR}/${TARGET_NAME}/icon.png" COPYONLY)
 elseif(NINTENDO_GAMECUBE)
-	ogc_create_dol(scratch-everywhere)
+	ogc_create_dol(${TARGET_NAME})
 elseif(VITA)
 	include("${VITASDK}/share/vita.cmake" REQUIRED)
 
@@ -291,8 +307,8 @@ elseif(VITA)
 		list(APPEND VITA_GFXFILES FILE "${file}" "${DEST_PATH}")
 	endforeach()
 
-	vita_create_self(scratch-everywhere.self scratch-everywhere)
-	vita_create_vpk(scratch-everywhere.vpk ${VITA_TITLEID} scratch-everywhere.self
+	vita_create_self(${TARGET_NAME}.self ${TARGET_NAME})
+	vita_create_vpk(${TARGET_NAME}.vpk ${VITA_TITLEID} ${TARGET_NAME}.self
 		VERSION "01.00"
 		NAME ${APP_NAME}
 		FILE ${CMAKE_SOURCE_DIR}/gfx/vita/icon0.png sce_sys/icon0.png
