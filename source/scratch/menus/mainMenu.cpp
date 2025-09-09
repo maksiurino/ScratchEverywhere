@@ -787,7 +787,7 @@ void DownloadMenu::init() {
         MenuManager::changeMenu(MenuManager::previousMenu);
         return;
     }
-#if defined(__WIIU__) || defined(__3DS__)
+#if defined(__WIIU__) || defined(__3DS__) || defined(VITA)
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
 #endif
