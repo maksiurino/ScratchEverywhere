@@ -459,11 +459,10 @@ void loadSprites(const rapidjson::Document &json) {
     for (rapidjson::SizeType i = 0; i < targets.Size(); i++) {
         const rapidjson::Value &target = targets[i];
 
-        // Sprite *newSprite = MemoryTracker::allocate<Sprite>();
         Sprite *newSprite = new Sprite();
-        // new (newSprite) Sprite();
-        if (target.contains("name")) {
-            newSprite->name = target["name"].get<std::string>();
+
+        if (target.HasMember("name") && target["name"].IsString()) {
+            newSprite->name = target["name"].GetString();
         }
         newSprite->id = Math::generateRandomString(15);
 
