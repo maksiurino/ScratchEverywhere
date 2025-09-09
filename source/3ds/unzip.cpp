@@ -9,6 +9,10 @@ volatile bool Unzip::threadFinished = false;
 std::string Unzip::filePath = "";
 mz_zip_archive Unzip::zipArchive;
 std::vector<char> Unzip::zipBuffer;
+void *Unzip::trackedBufferPtr = nullptr;
+size_t Unzip::trackedBufferSize = 0;
+void *Unzip::trackedJsonPtr = nullptr;
+size_t Unzip::trackedJsonSize = 0;
 
 int Unzip::openFile(std::ifstream *file) {
     Log::log("Unzipping Scratch Project...");

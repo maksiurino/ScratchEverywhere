@@ -19,6 +19,10 @@ std::string Unzip::filePath = "";
 std::string Unzip::loadingState = "";
 mz_zip_archive Unzip::zipArchive;
 std::vector<char> Unzip::zipBuffer;
+void *Unzip::trackedBufferPtr = nullptr;
+size_t Unzip::trackedBufferSize = 0;
+void *Unzip::trackedJsonPtr = nullptr;
+size_t Unzip::trackedJsonSize = 0;
 
 int Unzip::openFile(std::ifstream *file) {
     Log::log("Unzipping Scratch project...");
@@ -42,19 +46,24 @@ int Unzip::openFile(std::ifstream *file) {
         file->open(embeddedFilename, std::ios::binary | std::ios::ate);
         if (!(*file)) {
 
-            // Main menu
-            Log::logWarning("No sb3 project, trying Main Menu.");
-            projectType = UNEMBEDDED;
-            if (filePath == "") {
-                Log::log("Activating main menu...");
-                return -1;
-            } else {
-                // SD card Project
-                Log::logWarning("Main Menu already done, loading SD card project.");
-                file->open(OS::getScratchFolderLocation() + filePath, std::ios::binary | std::ios::ate);
-                if (!(*file)) {
-                    Log::logError("Couldn't find file. jinkies.");
-                    return 0;
+            file->open(OS::getScratchFolderLocation() + "project.sb3", std::ios::binary | std::ios::ate);
+
+            if (!(*file)) {
+
+                // Main menu
+                Log::logWarning("No sb3 project, trying Main Menu.");
+                projectType = UNEMBEDDED;
+                if (filePath == "") {
+                    Log::log("Activating main menu...");
+                    return -1;
+                } else {
+                    // SD card Project
+                    Log::logWarning("Main Menu already done, loading SD card project.");
+                    file->open(OS::getScratchFolderLocation() + filePath, std::ios::binary | std::ios::ate);
+                    if (!(*file)) {
+                        Log::logError("Couldn't find file. jinkies.");
+                        return 0;
+                    }
                 }
             }
         }

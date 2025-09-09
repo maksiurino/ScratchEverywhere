@@ -148,6 +148,7 @@ bool Scratch::startScratchProject() {
             }
         }
     }
+    cleanupScratchProject();
     return false;
 }
 
@@ -156,22 +157,26 @@ void Scratch::cleanupScratchProject() {
     Image::cleanupImages();
     SoundPlayer::cleanupAudio();
     blockLookup.clear();
+
+    for (auto &[id, text] : Render::monitorTexts) {
+        delete text;
+    }
+    Render::monitorTexts.clear();
+    TextObject::cleanupText();
+
     Render::visibleVariables.clear();
 
     // Clean up ZIP archive if it was initialized
     if (projectType != UNZIPPED) {
-        mz_zip_reader_end(&Unzip::zipArchive);
 
-        // Clear the ZIP buffer and deallocate its memory
-        size_t bufferSize = Unzip::zipBuffer.size();
+        mz_zip_reader_end(&Unzip::zipArchive);
+        if (Unzip::trackedBufferPtr) {
+            MemoryTracker::deallocate(Unzip::trackedBufferPtr, Unzip::trackedBufferSize);
+            Unzip::trackedBufferPtr = nullptr;
+            Unzip::trackedBufferSize = 0;
+        }
         Unzip::zipBuffer.clear();
         Unzip::zipBuffer.shrink_to_fit();
-
-        // Update memory tracker for the buffer
-        if (bufferSize > 0) {
-            MemoryTracker::deallocate(nullptr, bufferSize);
-        }
-
         memset(&Unzip::zipArchive, 0, sizeof(Unzip::zipArchive));
     }
 
@@ -217,11 +222,9 @@ void cleanupSprites() {
     for (Sprite *sprite : sprites) {
         if (sprite) {
             if (sprite->isClone) {
+                sprite->toDelete = true;
                 sprite->isDeleted = true;
-            } else {
-                sprite->~Sprite();
-                MemoryTracker::deallocate<Sprite>(sprite);
-            }
+            } else delete sprite;
         }
     }
     sprites.clear();
@@ -456,11 +459,11 @@ void loadSprites(const rapidjson::Document &json) {
     for (rapidjson::SizeType i = 0; i < targets.Size(); i++) {
         const rapidjson::Value &target = targets[i];
 
-        Sprite *newSprite = MemoryTracker::allocate<Sprite>();
-        new (newSprite) Sprite();
-
-        if (target.HasMember("name") && target["name"].IsString()) {
-            newSprite->name = target["name"].GetString();
+        // Sprite *newSprite = MemoryTracker::allocate<Sprite>();
+        Sprite *newSprite = new Sprite();
+        // new (newSprite) Sprite();
+        if (target.contains("name")) {
+            newSprite->name = target["name"].get<std::string>();
         }
         newSprite->id = Math::generateRandomString(15);
 

@@ -22,6 +22,10 @@ class Unzip {
     static std::string filePath;
     static mz_zip_archive zipArchive;
     static std::vector<char> zipBuffer;
+    static void *trackedBufferPtr;
+    static size_t trackedBufferSize;
+    static void *trackedJsonPtr;
+    static size_t trackedJsonSize;
 
     static void openScratchProject(void *arg) {
         loadingState = "Opening Scratch project";
@@ -150,18 +154,18 @@ class Unzip {
         if (projectType != UNZIPPED) {
             // read the file
             Log::log("Reading SB3...");
-            std::streamsize size = file->tellg(); // gets the size of the file
-            file->seekg(0, std::ios::beg);        // go to the beginning of the file
+            std::streamsize size = file->tellg();
+            file->seekg(0, std::ios::beg);
             zipBuffer.resize(size);
             if (!file->read(zipBuffer.data(), size)) {
                 return false;
             }
-            size_t bufferSize = zipBuffer.size();
 
-            // Track memory
-            MemoryTracker::allocate(bufferSize);
+            // Use RAW allocation function and store both pointer and size
+            trackedBufferSize = zipBuffer.size();
+            trackedBufferPtr = MemoryTracker::allocate(trackedBufferSize);
 
-            // open ZIP file from the thing that we just did
+            // open ZIP file
             Log::log("Opening SB3 file...");
             memset(&zipArchive, 0, sizeof(zipArchive));
             if (!mz_zip_reader_init_mem(&zipArchive, zipBuffer.data(), zipBuffer.size(), 0)) {
@@ -184,14 +188,20 @@ class Unzip {
 
             // Parse JSON file
             Log::log("Parsing project.json...");
-            MemoryTracker::allocate(json_size);
+            // Use RAW allocation and store pointer + size
+            trackedJsonSize = json_size;
+            trackedJsonPtr = MemoryTracker::allocate(trackedJsonSize);
 
             // Parse the JSON string using RapidJSON
             rapidjson::ParseResult parseResult = project_json.Parse(json_data, json_size);
 
             // Clean up allocated memory
             mz_free((void *)json_data);
-            MemoryTracker::deallocate(nullptr, json_size);
+            if (trackedJsonPtr) {
+                MemoryTracker::deallocate(trackedJsonPtr, trackedJsonSize);
+                trackedJsonPtr = nullptr;
+                trackedJsonSize = 0;
+            }
 
             // Check for parse errors
             if (!parseResult) {
@@ -201,10 +211,9 @@ class Unzip {
             }
 
         } else {
-            // if project is unzipped
-            file->clear();                 // Clear any EOF flags
-            file->seekg(0, std::ios::beg); // Go to the start of the file
-
+            // unzipped project handling...
+            file->clear();
+            file->seekg(0, std::ios::beg);
 #ifdef ENABLE_CLOUDVARS
             projectJSON = {std::istreambuf_iterator<char>(*file), std::istreambuf_iterator<char>()};
 #endif
