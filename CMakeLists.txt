@@ -97,6 +97,7 @@ list(APPEND SOURCE_FILES "${miniz_SOURCE_DIR}/miniz.c")
 
 add_executable(scratch-everywhere ${SOURCE_FILES})
 
+# Copy graphics files to romfs
 file(GLOB_RECURSE GFXFILES "${CMAKE_SOURCE_DIR}/gfx/*")
 foreach(file IN LISTS GFXFILES)
     file(RELATIVE_PATH REL_PATH "${CMAKE_SOURCE_DIR}/gfx" "${file}")
