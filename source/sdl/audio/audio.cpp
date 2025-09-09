@@ -175,8 +175,19 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
                     return false;
                 }
             } else {
-                // need to write to a temp file beacause this is zip file
-                std::string tempFile = "temp_" + soundId;
+                // need to write to a temp file because this is a zip file
+                std::string tempDir = OS::getScratchFolderLocation() + "/cache";
+                std::string tempFile = tempDir + "/temp_" + soundId;
+
+                // make cache directory
+                try {
+                    std::filesystem::create_directories(tempDir);
+                } catch (const std::exception &e) {
+                    Log::logWarning(std::string("Failed to create temp directory: ") + e.what());
+                    mz_free(file_data);
+                    return false;
+                }
+
                 FILE *fp = fopen(tempFile.c_str(), "wb");
                 if (!fp) {
                     Log::logWarning("Failed to create temp file for streaming");
@@ -231,6 +242,7 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
             Log::log("Successfully loaded audio!");
             // Log::log("memory usage: " + std::to_string(MemoryTracker::getCurrentUsage() / 1024) + " KB");
             SDL_Sounds[soundId]->isLoaded = true;
+            SDL_Sounds[soundId]->channelId = SDL_Sounds.size();
             playSound(soundId);
             setSoundVolume(soundId, sprite->volume);
             return true;
@@ -249,10 +261,7 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
     std::string lowerFileName = fileName;
     std::transform(lowerFileName.begin(), lowerFileName.end(), lowerFileName.begin(), ::tolower);
 
-#if defined(__WIIU__) || defined(__OGC__)
-    std::string romfsExt = "romfs:/";
-    fileName = romfsExt + fileName;
-#endif
+    fileName = OS::getRomFSLocation() + fileName;
 
     bool isSupported = false;
     if (lowerFileName.size() >= 4) {
@@ -315,6 +324,7 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
 
     Log::log("Successfully loaded audio!");
     SDL_Sounds[fileName]->isLoaded = true;
+    SDL_Sounds[fileName]->channelId = SDL_Sounds.size();
     playSound(fileName);
     setSoundVolume(fileName, sprite->volume);
     return true;
@@ -367,6 +377,10 @@ void SoundPlayer::setSoundVolume(const std::string &soundId, float volume) {
         if (soundFind->second->isStreaming) {
             Mix_VolumeMusic(sdlVolume);
         } else {
+            if (channel < 0 || channel >= Mix_AllocateChannels(-1)) {
+                Log::logWarning("Invalid channel to set volume to!");
+                return;
+            }
             Mix_Volume(channel, sdlVolume);
         }
     }
@@ -383,7 +397,7 @@ float SoundPlayer::getSoundVolume(const std::string &soundId) {
             sdlVolume = Mix_VolumeMusic(-1);
         } else {
             int channel = soundFind->second->channelId;
-            if (channel != -1) {
+            if (channel >= 0 && channel < Mix_AllocateChannels(-1)) {
                 sdlVolume = Mix_Volume(channel, -1);
             } else {
                 // no channel assigned
@@ -405,7 +419,11 @@ void SoundPlayer::stopSound(const std::string &soundId) {
     auto soundFind = SDL_Sounds.find(soundId);
     if (soundFind != SDL_Sounds.end()) {
         int channel = soundFind->second->channelId;
-        Mix_HaltChannel(channel);
+        if (channel >= 0 && channel < Mix_AllocateChannels(-1)) {
+            Mix_HaltChannel(channel);
+        } else {
+            Log::logWarning("Invalid channel for sound: " + soundId);
+        }
     } else {
         Log::logWarning("No active channel found for sound: " + soundId);
     }

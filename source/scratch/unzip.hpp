@@ -19,6 +19,10 @@ class Unzip {
     static std::string filePath;
     static mz_zip_archive zipArchive;
     static std::vector<char> zipBuffer;
+    static void *trackedBufferPtr;
+    static size_t trackedBufferSize;
+    static void *trackedJsonPtr;
+    static size_t trackedJsonSize;
 
     static void openScratchProject(void *arg) {
         loadingState = "Opening Scratch project";
@@ -97,25 +101,67 @@ class Unzip {
     }
 #endif
 
-    static nlohmann::json unzipProject(std::ifstream *file) {
+    static std::string getSplashText() {
+        std::string textPath = "gfx/menu/splashText.txt";
 
+        textPath = OS::getRomFSLocation() + textPath;
+
+        std::vector<std::string> splashLines;
+        std::ifstream file(textPath);
+
+        if (!file.is_open()) {
+            return "Everywhere!"; // fallback text
+        }
+
+        std::string line;
+        while (std::getline(file, line)) {
+            if (!line.empty()) { // skip empty lines
+                splashLines.push_back(line);
+            }
+        }
+        file.close();
+
+        if (splashLines.empty()) {
+            return "Everywhere!"; // fallback if file is empty
+        }
+
+        // Initialize random number generator with current time
+        static std::mt19937 rng(static_cast<unsigned int>(std::time(nullptr)));
+        std::uniform_int_distribution<size_t> dist(0, splashLines.size() - 1);
+
+        std::string splash = splashLines[dist(rng)];
+
+        // Replace {PlatformName} with OS::getPlatform()
+        const std::string platformName = "{PlatformName}";
+        const std::string platform = OS::getPlatform();
+
+        size_t pos = 0;
+        while ((pos = splash.find(platformName, pos)) != std::string::npos) {
+            splash.replace(pos, platformName.size(), platform);
+            pos += platform.size(); // move past replacement
+        }
+
+        return splash;
+    }
+
+    static nlohmann::json unzipProject(std::ifstream *file) {
         nlohmann::json project_json;
 
         if (projectType != UNZIPPED) {
             // read the file
             Log::log("Reading SB3...");
-            std::streamsize size = file->tellg(); // gets the size of the file
-            file->seekg(0, std::ios::beg);        // go to the beginning of the file
+            std::streamsize size = file->tellg();
+            file->seekg(0, std::ios::beg);
             zipBuffer.resize(size);
             if (!file->read(zipBuffer.data(), size)) {
                 return project_json;
             }
-            size_t bufferSize = zipBuffer.size();
 
-            // Track memory
-            MemoryTracker::allocate(bufferSize);
+            // Use RAW allocation function and store both pointer and size
+            trackedBufferSize = zipBuffer.size();
+            trackedBufferPtr = MemoryTracker::allocate(trackedBufferSize);
 
-            // open ZIP file from the thing that we just did
+            // open ZIP file
             Log::log("Opening SB3 file...");
             memset(&zipArchive, 0, sizeof(zipArchive));
             if (!mz_zip_reader_init_mem(&zipArchive, zipBuffer.data(), zipBuffer.size(), 0)) {
@@ -138,23 +184,29 @@ class Unzip {
 
             // Parse JSON file
             Log::log("Parsing project.json...");
-            MemoryTracker::allocate(json_size);
+            // Use RAW allocation and store pointer + size
+            trackedJsonSize = json_size;
+            trackedJsonPtr = MemoryTracker::allocate(trackedJsonSize);
+
             project_json = nlohmann::json::parse(std::string(json_data, json_size));
             mz_free((void *)json_data);
-            MemoryTracker::deallocate(nullptr, json_size);
 
-            // Image::loadImages(&zipArchive);
-            // mz_zip_reader_end(&zipArchive);
+            // FIXED: Use RAW deallocate function
+            if (trackedJsonPtr) {
+                MemoryTracker::deallocate(trackedJsonPtr, trackedJsonSize);
+                trackedJsonPtr = nullptr;
+                trackedJsonSize = 0;
+            }
+
         } else {
-            // if project is unzipped
-            file->clear();                 // Clear any EOF flags
-            file->seekg(0, std::ios::beg); // Go to the start of the file
+            // unzipped project handling...
+            file->clear();
+            file->seekg(0, std::ios::beg);
 #ifdef ENABLE_CLOUDVARS
             projectJSON = {std::istreambuf_iterator<char>(*file), std::istreambuf_iterator<char>()};
 #endif
             (*file) >> project_json;
         }
-        Image::loadImages(&zipArchive);
         return project_json;
     }
 
