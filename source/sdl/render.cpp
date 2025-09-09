@@ -182,19 +182,21 @@ postAccount:
     return true;
 }
 void Render::deInit() {
+    Image::cleanupImages();
+    SoundPlayer::cleanupAudio();
+    TextObject::cleanupText();
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SoundPlayer::deinit();
     IMG_Quit();
     SDL_Quit();
 
-#if defined(__WIIU__) || defined(__SWITCH__)
+#if defined(__WIIU__) || defined(__SWITCH__) || defined(__OGC__)
     romfsExit();
-#elif defined(__WIIU__)
+#endif
+#ifdef __WIIU__
     WHBUnmountSdCard();
     nn::act::Finalize();
-#elif defined(__OGC__)
-    romfsExit();
 #elif defined(VITA)
     sceNetCtlTerm();
     sceNetTerm();

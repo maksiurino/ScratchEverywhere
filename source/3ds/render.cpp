@@ -494,6 +494,8 @@ void Render::deInit() {
     socExit();
 
     Image::cleanupImages();
+    SoundPlayer::cleanupAudio();
+    TextObject::cleanupText();
     SoundPlayer::deinit();
     C2D_Fini();
     C3D_Fini();
