@@ -25,6 +25,9 @@ if(NINTENDO_3DS)
 	option(SE_MAKEROM "Path to makerom executable" makerom)
 	set(SE_RAM 72 CACHE STRING "The amount of RAM to make available to SE! (MB)")
 endif()
+if(NOT (NINTENDO_GAMECUBE OR VITA OR NINTENDO_SWITCH OR NINTENDO_WII))
+	option(SE_CLOUDVARS "Enable cloud variables." ON) # On by default now that you know longer need to globally install special dependencies
+endif()
 
 if(NINTENDO_3DS)
 	if(SE_ENABLE_AUDIO)
@@ -69,6 +72,36 @@ CPMAddPackage(
     GITHUB_REPOSITORY nlohmann/json
     VERSION 3.12.0
 )
+
+if(SE_CLOUDVARS)
+	if(NINTENDO_3DS)
+		CPMAddPackage(
+			NAME curl
+			GIT_REPOSITORY "https://github.com/curl/curl.git"
+			GIT_TAG "curl-8_4_0"
+			VERSION 8.4.0
+			OPTIONS ENABLE_WEBSOCKETS ON ENABLE_IPV6 OFF ENABLE_UNIX_SOCKETS OFF ENABLE_THREADED_RESOLVER OFF ENABLE_MANUAL OFF CURL_DISABLE_NTLM ON
+			PATCHES "${CMAKE_SOURCE_DIR}/cmake/curl-3ds.patch"
+		)
+	elseif(NINTENDO_WIIU)
+		CPMAddPackage(
+			NAME curl
+			GIT_REPOSITORY "https://github.com/curl/curl.git"
+			GIT_TAG "curl-8_7_1"
+			VERSION 8.7.1
+			OPTIONS ENABLE_WEBSOCKETS ON ENABLE_IPV6 OFF ENABLE_UNIX_SOCKETS OFF ENABLE_THREADED_RESOLVER OFF ENABLE_MANUAL OFF CURL_DISABLE_NTLM ON
+		)
+	else()
+		CPMAddPackage(
+			NAME curl
+			GIT_REPOSITORY "https://github.com/curl/curl.git"
+			GIT_TAG "curl-8_15_0"
+			VERSION 8.15.0
+			OPTIONS BUILD_CURL_EXE OFF BUILD_TESTING OFF BUILD_EXAMPLES OFF
+		)
+	endif()
+	CPMAddPackage("gh:ScratchEverywhere/mistpp@0.3.1")
+endif()
 
 include(FetchContent)
 FetchContent_Declare(
@@ -173,8 +206,12 @@ endif()
 if(SE_ENABLE_AUDIO)
 	target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_AUDIO)
 endif()
-if (SE_ENABLE_BUBBLES)
+if(SE_ENABLE_BUBBLES)
 	target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_BUBBLES)
+endif()
+if(SE_CLOUDVARS)
+	target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_CLOUDVARS)
+	target_link_libraries(${TARGET_NAME} CURL::libcurl mist++)
 endif()
 
 target_link_libraries(${TARGET_NAME} nlohmann_json::nlohmann_json)
