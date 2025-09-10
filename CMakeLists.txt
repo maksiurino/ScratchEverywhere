@@ -75,22 +75,54 @@ CPMAddPackage(
 
 if(SE_CLOUDVARS)
 	if(NINTENDO_3DS)
-		CPMAddPackage(
-			NAME curl
-			GIT_REPOSITORY "https://github.com/curl/curl.git"
-			GIT_TAG "curl-8_4_0"
-			VERSION 8.4.0
-			OPTIONS ENABLE_WEBSOCKETS ON ENABLE_IPV6 OFF ENABLE_UNIX_SOCKETS OFF ENABLE_THREADED_RESOLVER OFF ENABLE_MANUAL OFF CURL_DISABLE_NTLM ON
-			PATCHES "${CMAKE_SOURCE_DIR}/cmake/curl-3ds.patch"
+		include(ExternalProject)
+
+		set(CURL_INSTALL_DIR ${CMAKE_BINARY_DIR}/curl-install)
+		set(CURL_SOURCE_DIR ${CMAKE_BINARY_DIR}/curl-src)
+
+		ExternalProject_Add(
+			curl
+			URL https://curl.haxx.se/download/curl-8.4.0.tar.xz
+			URL_HASH SHA256=16c62a9c4af0f703d28bda6d7bbf37ba47055ad3414d70dec63e2e6336f2a82d
+			SOURCE_DIR ${CURL_SOURCE_DIR}
+			PATCH_COMMAND patch -Np1 -i "${CMAKE_SOURCE_DIR}/cmake/curl-3ds.patch"
+			CONFIGURE_COMMAND bash -c ". ${DEVKITPRO}/3dsvars.sh && <SOURCE_DIR>/configure CFLAGS=\"$CFLAGS\" CPPFLAGS=\"$CPPFLAGS\" LIBS=\"-lctru\" --host=arm-none-eabi --disable-shared --enable-static --disable-ipv6 --disable-unix-sockets --disable-threaded-resolver --disable-manual --disable-pthreads --disable-socketpair --disable-ntlm-wb --with-mbedtls=${DEVKITPRO}/portlibs/3ds --with-ca-bundle=sdmc:/config/ssl/cacert.pem"
+			BUILD_COMMAND bash -c ". ${DEVKITPRO}/3dsvars.sh && $(MAKE) -C lib"
+			INSTALL_COMMAND ""
+			BUILD_IN_SOURCE 1
 		)
+
+		add_library(libcurl STATIC IMPORTED)
+		set_target_properties(libcurl PROPERTIES
+			IMPORTED_LOCATION ${CURL_INSTALL_DIR}/usr/local/lib/libcurl.a
+			INTERFACE_INCLUDE_DIRECTORIES ${CURL_INSTALL_DIR}/usr/local/include
+		)
+
+		add_dependencies(libcurl curl)
 	elseif(NINTENDO_WIIU)
-		CPMAddPackage(
-			NAME curl
-			GIT_REPOSITORY "https://github.com/curl/curl.git"
-			GIT_TAG "curl-8_7_1"
-			VERSION 8.7.1
-			OPTIONS ENABLE_WEBSOCKETS ON ENABLE_IPV6 OFF ENABLE_UNIX_SOCKETS OFF ENABLE_THREADED_RESOLVER OFF ENABLE_MANUAL OFF CURL_DISABLE_NTLM ON
+		include(ExternalProject)
+
+		set(CURL_INSTALL_DIR ${CMAKE_BINARY_DIR}/curl-install)
+		set(CURL_SOURCE_DIR ${CMAKE_BINARY_DIR}/curl-src)
+
+		ExternalProject_Add(
+			curl
+			URL https://curl.se/download/curl-8.7.1.tar.xz
+			URL_HASH SHA256=6fea2aac6a4610fbd0400afb0bcddbe7258a64c63f1f68e5855ebc0c659710cd
+			SOURCE_DIR ${CURL_SOURCE_DIR}
+			CONFIGURE_COMMAND bash -c ". ${DEVKITPRO}/wiiuvars.sh && <SOURCE_DIR>/configure --host=powerpc-eabi --disable-shared --enable-static --disable-ipv6 --disable-unix-sockets --disable-threaded-resolver --disable-manual --disable-pthreads --disable-socketpair --disable-ntlm-wb --with-mbedtls=${DEVKITPRO}/portlibs/wiiu --with-ca-path=/vol/storage_mlc01/sys/title/0005001b/10054000/content/scerts"
+			BUILD_COMMAND bash -c ". ${DEVKITPRO}/wiiuvars.sh && $(MAKE) -C lib"
+			INSTALL_COMMAND ""
+			BUILD_IN_SOURCE 1
 		)
+
+		add_library(libcurl STATIC IMPORTED)
+		set_target_properties(libcurl PROPERTIES
+			IMPORTED_LOCATION ${CURL_INSTALL_DIR}/usr/local/lib/libcurl.a
+			INTERFACE_INCLUDE_DIRECTORIES ${CURL_INSTALL_DIR}/usr/local/include
+		)
+
+		add_dependencies(libcurl curl)
 	else()
 		CPMAddPackage(
 			NAME curl
@@ -211,7 +243,7 @@ if(SE_ENABLE_BUBBLES)
 endif()
 if(SE_CLOUDVARS)
 	target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_CLOUDVARS)
-	target_link_libraries(${TARGET_NAME} CURL::libcurl mist++)
+	target_link_libraries(${TARGET_NAME} mist++)
 endif()
 
 target_link_libraries(${TARGET_NAME} nlohmann_json::nlohmann_json)
