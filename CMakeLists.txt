@@ -235,6 +235,12 @@ elseif(NOT NINTENDO_3DS)
 	target_compile_definitions(${TARGET_NAME} PRIVATE __PC__ SDL_BUILD)
 endif()
 
+if(NINTENDO_WII)
+	target_compile_definitions(${TARGET_NAME} PRIVATE WII)
+elseif(NINTENDO_GAMECUBE)
+	target_compile_definitions(${TARGET_NAME} PRIVATE GAMECUBE)
+endif()
+
 if(SE_ENABLE_AUDIO)
 	target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_AUDIO)
 endif()
