@@ -225,8 +225,6 @@ if(NOT NINTENDO_3DS)
 	endif()
 endif()
 
-# TODO: add cloud variable support
-
 if(NINTENDO_WIIU OR NINTENDO_SWITCH OR NINTENDO_WII OR NINTENDO_GAMECUBE)
 	target_compile_definitions(${TARGET_NAME} PRIVATE SDL_BUILD)
 elseif(VITA)
