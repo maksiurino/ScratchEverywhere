@@ -220,7 +220,7 @@ Then it should be as simple as opening and starting the app from your Vita's Liv
 
 In order to embed a Scratch project in the executable, you'll need to compile the source code.
 
-If you would like to change the name of the app or any other information you can edit the `CMakeLists.txt` file and change `APP_NAME`, `APP_DESCRIPTION`, and `VITA_TITLEID` to whatever you want. You can also swap out assers in the `gfx/` folder.
+If you would like to change the name of the app or any other information you can edit the `CMakeLists.txt` file and change `APP_NAME`, `APP_DESCRIPTION`, and `VITA_TITLEID` to whatever you want. You can also swap out assets in the `gfx/` folder.
 
 > [!IMPORTANT]
 > On Vita if you're going to use custom LiveArea images, you must run them through `pngquant` (install with your package manager) with `--posterize` set to 4 first before packaging.
