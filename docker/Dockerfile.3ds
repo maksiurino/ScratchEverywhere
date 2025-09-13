@@ -13,7 +13,7 @@ RUN git clone https://github.com/carstene1ns/3ds-bannertool.git . && cmake -B bu
 FROM devkitpro/devkitarm:latest AS main_builder
 WORKDIR /app
 
-# Bring in all built portlibs + makerom + bannertool
+# Bring in built makerom + bannertool
 COPY --from=bannertool_builder /bannertool /bannertool
 COPY --from=makerom_installer /makerom /makerom
 COPY . .
