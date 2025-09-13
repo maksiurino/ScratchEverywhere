@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(Scratch-Everywhere VERSION 0.20 LANGUAGES CXX C)
+project(Scratch-Everywhere VERSION 0.23 LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
