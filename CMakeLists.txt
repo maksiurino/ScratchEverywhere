@@ -234,9 +234,9 @@ elseif(NOT NINTENDO_3DS)
 endif()
 
 if(NINTENDO_WII)
-	target_compile_definitions(${TARGET_NAME} PRIVATE WII)
+	target_compile_definitions(${TARGET_NAME} PRIVATE WII __OGC__)
 elseif(NINTENDO_GAMECUBE)
-	target_compile_definitions(${TARGET_NAME} PRIVATE GAMECUBE)
+	target_compile_definitions(${TARGET_NAME} PRIVATE GAMECUBE __OGC__)
 endif()
 
 if(SE_ENABLE_AUDIO)
