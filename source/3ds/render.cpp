@@ -85,9 +85,9 @@ bool Render::Init() {
     int channels = 1;
 
     if (OS::isNew3DS()) {
-        sampleRate = 48000;
-        bufferSize = 4096;
-        channels = 2;
+        // sampleRate = 48000;
+        // bufferSize = 4096;
+        // channels = 2;
     }
 
     if (Mix_OpenAudio(sampleRate, MIX_DEFAULT_FORMAT, channels, bufferSize) < 0) {

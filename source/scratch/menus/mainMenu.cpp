@@ -73,6 +73,11 @@ MainMenu::~MainMenu() {
 
 void MainMenu::init() {
 
+    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_splash.ogg"))
+        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_splash.ogg", true, false, true);
+    else SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
+    SoundPlayer::stopSound("gfx/menu/mm_full.ogg");
+
     Input::applyControls();
     Render::renderMode = Render::BOTH_SCREENS;
 
@@ -107,6 +112,9 @@ void MainMenu::render() {
 
     Input::getInput();
     mainMenuControl->input();
+
+    if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg"))
+        SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
 
     if (loadButton->isPressed()) {
         ProjectMenu *projectMenu = new ProjectMenu();
@@ -178,6 +186,11 @@ ProjectMenu::~ProjectMenu() {
 }
 
 void ProjectMenu::init() {
+
+    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_full.ogg"))
+        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_full.ogg", true, false, true);
+    else SoundPlayer::playSound("gfx/menu/mm_full.ogg");
+    SoundPlayer::stopSound("gfx/menu/mm_splash.ogg");
 
     projectControl = new ControlObject();
     backButton = new ButtonObject("", "gfx/menu/buttonBack.png", 375, 20, "gfx/menu/Ubuntu-Bold");
@@ -278,6 +291,9 @@ void ProjectMenu::init() {
 void ProjectMenu::render() {
     Input::getInput();
     projectControl->input();
+
+    if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_full.ogg"))
+        SoundPlayer::playSound("gfx/menu/mm_full.ogg");
 
     float targetY = 0.0f;
     float lerpSpeed = 0.1f;

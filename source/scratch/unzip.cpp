@@ -157,6 +157,7 @@ bool Unzip::load() {
         while (!Unzip::threadFinished) {
             loading.render();
         }
+        loading.cleanup();
     } else Unzip::openScratchProject(NULL);
 
     if (Unzip::projectOpened != 1)
