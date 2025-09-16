@@ -117,7 +117,7 @@ std::string OS::getScratchFolderLocation() {
 std::string OS::getRomFSLocation() {
 #if defined(__WIIU__) || defined(__OGC__) || defined(__SWITCH__) || defined(__3DS__)
     return "romfs:/";
-#elif defined(EMSCRIPTEN)
+#elif defined(__EMSCRIPTEN__)
     return "/romfs/";
 #else
     return "";
