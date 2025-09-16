@@ -47,15 +47,13 @@ bool activateMainMenu() {
     return true;
 }
 
-#ifdef __EMSCRIPTEN__
-void main_loop() {
+void mainLoop() {
     Scratch::startScratchProject();
     if (toExit || !activateMainMenu()) {
         exitApp();
         exit(0);
     }
 }
-#endif
 
 int main(int argc, char **argv) {
     if (!initApp()) {
@@ -75,11 +73,10 @@ int main(int argc, char **argv) {
     }
 
 #ifdef __EMSCRIPTEN__
-    emscripten_set_main_loop(main_loop, 0, 1);
+    emscripten_set_main_loop(mainLoop, 0, 1);
 #else
-    while (Scratch::startScratchProject()) {
-        if (toExit || !activateMainMenu()) break;
-    }
+    while (1)
+        mainLoop();
 #endif
 
     exitApp();
