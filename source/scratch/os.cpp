@@ -6,8 +6,6 @@
 #include <iostream>
 #include <ostream>
 #include <string>
-#include <iostream>
-#include <fstream>
 #ifdef __OGC__
 #include <gccore.h>
 #endif
@@ -119,6 +117,8 @@ std::string OS::getScratchFolderLocation() {
 std::string OS::getRomFSLocation() {
 #if defined(__WIIU__) || defined(__OGC__) || defined(__SWITCH__) || defined(__3DS__)
     return "romfs:/";
+#elif defined(EMSCRIPTEN)
+    return "/romfs/";
 #else
     return "";
 #endif
