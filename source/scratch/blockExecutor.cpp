@@ -179,7 +179,7 @@ void BlockExecutor::registerHandlers() {
     handlers["pen_changePenColorParamBy"] = PenBlocks::ChangePenOptionBy;
     handlers["pen_stamp"] = PenBlocks::Stamp;
     handlers["pen_setPenColorToColor"] = PenBlocks::SetPenColorTo;
-    handlers["pen_setPenSizeTo "] = PenBlocks::SetPenSizeTo;
+    handlers["pen_setPenSizeTo"] = PenBlocks::SetPenSizeTo;
     handlers["pen_changePenSizeBy"] = PenBlocks::ChangePenSizeBy;
 }
 

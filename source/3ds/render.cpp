@@ -136,6 +136,9 @@ int Render::getHeight() {
     return SCREEN_HEIGHT;
 }
 
+void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite) {
+}
+
 void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
     if (!hasFrameBegan) {
         C3D_FrameBegin(C3D_FRAME_SYNCDRAW);

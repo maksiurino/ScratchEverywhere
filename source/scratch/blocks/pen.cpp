@@ -5,6 +5,7 @@ C2D_Image penImage;
 C3D_RenderTarget *penRenderTarget;
 #elif defined(SDL_BUILD)
 #include "../../sdl/render.hpp"
+#include <SDL2/SDL2_gfxPrimitives.h>
 
 SDL_Texture *penTexture;
 #else
@@ -16,6 +17,14 @@ const unsigned int maxPenSize = 1000;
 
 BlockResult PenBlocks::PenDown(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     sprite->penData.down = true;
+
+#ifdef SDL_BUILD
+    SDL_SetRenderTarget(renderer, penTexture);
+    const ColorRGB rgbColor = HSB2RGB(sprite->penData.color);
+    filledCircleRGBA(renderer, sprite->xPosition + 240, -sprite->yPosition + 180, sprite->penData.size / 2, rgbColor.r, rgbColor.g, rgbColor.b, 255);
+    SDL_SetRenderTarget(renderer, nullptr);
+#elif defined(__3DS__)
+#endif
 
     return BlockResult::CONTINUE;
 }

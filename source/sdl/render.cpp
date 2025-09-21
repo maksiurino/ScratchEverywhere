@@ -9,6 +9,7 @@
 #include "sprite.hpp"
 #include "text.hpp"
 #include <SDL2/SDL.h>
+#include <SDL2/SDL2_gfxPrimitives.h>
 #include <SDL2/SDL_events.h>
 #include <SDL2/SDL_gamecontroller.h>
 #include <SDL2/SDL_image.h>
@@ -209,6 +210,39 @@ int Render::getWidth() {
 int Render::getHeight() {
     SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
     return windowHeight;
+}
+
+void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite) {
+    const ColorRGB rgbColor = HSB2RGB(sprite->penData.color);
+
+    SDL_SetRenderTarget(renderer, penTexture);
+
+    const double dx = x2 - x1;
+    const double dy = y2 - y1;
+
+    const double length = sqrt(dx * dx + dy * dy);
+
+    if (length > 0) {
+        const double nx = dx / length;
+        const double ny = dy / length;
+
+        int16_t vx[4], vy[4];
+        vx[0] = static_cast<int16_t>(x1 + 240 - ny * (sprite->penData.size / 2));
+        vy[0] = static_cast<int16_t>(-y1 + 180 + nx * (sprite->penData.size / 2));
+        vx[1] = static_cast<int16_t>(x1 + 240 + ny * (sprite->penData.size / 2));
+        vy[1] = static_cast<int16_t>(-y1 + 180 - nx * (sprite->penData.size / 2));
+        vx[2] = static_cast<int16_t>(x2 + 240 + ny * (sprite->penData.size / 2));
+        vy[2] = static_cast<int16_t>(-y2 + 180 - nx * (sprite->penData.size / 2));
+        vx[3] = static_cast<int16_t>(x2 + 240 - ny * (sprite->penData.size / 2));
+        vy[3] = static_cast<int16_t>(-y2 + 180 + nx * (sprite->penData.size / 2));
+
+        filledPolygonRGBA(renderer, vx, vy, 4, rgbColor.r, rgbColor.g, rgbColor.b, 255);
+    }
+
+    filledCircleRGBA(renderer, x1 + 240, -y1 + 180, sprite->penData.size / 2, rgbColor.r, rgbColor.g, rgbColor.b, 255);
+    filledCircleRGBA(renderer, x2 + 240, -y2 + 180, sprite->penData.size / 2, rgbColor.r, rgbColor.g, rgbColor.b, 255);
+
+    SDL_SetRenderTarget(renderer, nullptr);
 }
 
 void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {

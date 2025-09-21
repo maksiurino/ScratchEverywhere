@@ -79,6 +79,11 @@ class Render {
     static bool appShouldRun();
 
     /**
+     * Called whenever the pen is down and a sprite moves (so a line should be drawn.)
+     */
+    static void penMove(double x1, double y1, double x2, double y2, Sprite *sprite);
+
+    /**
      * Returns whether or not enough time has passed to advance a frame.
      * @return True if we should go to the next frame, False otherwise.
      */
