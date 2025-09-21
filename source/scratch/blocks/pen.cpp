@@ -41,7 +41,7 @@ BlockResult PenBlocks::PenUp(Block &block, Sprite *sprite, bool *withoutScreenRe
 }
 
 BlockResult PenBlocks::SetPenOptionTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    const std::string option = Scratch::getInputValue(block, "COLOR_PARAM", sprite).asString();
+    const std::string option = Scratch::getFieldValue(block, "COLOR_PARAM");
 
     if (option == "color") {
         sprite->penData.color.hue = Scratch::getInputValue(block, "VALUE", sprite).asInt() % 100;
@@ -72,7 +72,7 @@ BlockResult PenBlocks::SetPenOptionTo(Block &block, Sprite *sprite, bool *withou
 }
 
 BlockResult PenBlocks::ChangePenOptionBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    const std::string option = Scratch::getInputValue(block, "COLOR_PARAM", sprite).asString();
+    const std::string option = Scratch::getFieldValue(block, "COLOR_PARAM");
 
     if (option == "color") {
         sprite->penData.color.hue += Scratch::getInputValue(block, "VALUE", sprite).asInt() % 100;
