@@ -41,63 +41,74 @@ BlockResult PenBlocks::PenUp(Block &block, Sprite *sprite, bool *withoutScreenRe
 }
 
 BlockResult PenBlocks::SetPenOptionTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    const std::string option = Scratch::getFieldValue(block, "COLOR_PARAM");
 
-    if (option == "color") {
-        sprite->penData.color.hue = Scratch::getInputValue(block, "VALUE", sprite).asInt() % 100;
-        return BlockResult::CONTINUE;
-    }
-    if (option == "saturation") {
-        sprite->penData.color.saturation = Scratch::getInputValue(block, "VALUE", sprite).asDouble();
-        if (sprite->penData.color.saturation < 0) sprite->penData.color.saturation = 0;
-        else if (sprite->penData.color.saturation > 100) sprite->penData.color.saturation = 100;
-        return BlockResult::CONTINUE;
-    }
-    if (option == "brightness") {
-        sprite->penData.color.brightness = Scratch::getInputValue(block, "VALUE", sprite).asDouble();
-        if (sprite->penData.color.brightness < 0) sprite->penData.color.brightness = 0;
-        else if (sprite->penData.color.brightness > 100) sprite->penData.color.brightness = 100;
-        return BlockResult::CONTINUE;
-    }
-    if (option == "transparency") {
-        sprite->penData.transparency = Scratch::getInputValue(block, "VALUE", sprite).asDouble();
-        if (sprite->penData.transparency < 0) sprite->penData.transparency = 0;
-        else if (sprite->penData.transparency > 100) sprite->penData.transparency = 100;
-        return BlockResult::CONTINUE;
+    Block *optionBlock = findBlock(Scratch::getInputValue(block, "COLOR_PARAM", sprite).asString());
+
+    if (optionBlock != nullptr) {
+
+        const std::string option = Scratch::getFieldValue(*optionBlock, "colorParam");
+
+        if (option == "color") {
+            sprite->penData.color.hue = Scratch::getInputValue(block, "VALUE", sprite).asInt() % 100;
+            return BlockResult::CONTINUE;
+        }
+        if (option == "saturation") {
+            sprite->penData.color.saturation = Scratch::getInputValue(block, "VALUE", sprite).asDouble();
+            if (sprite->penData.color.saturation < 0) sprite->penData.color.saturation = 0;
+            else if (sprite->penData.color.saturation > 100) sprite->penData.color.saturation = 100;
+            return BlockResult::CONTINUE;
+        }
+        if (option == "brightness") {
+            sprite->penData.color.brightness = Scratch::getInputValue(block, "VALUE", sprite).asDouble();
+            if (sprite->penData.color.brightness < 0) sprite->penData.color.brightness = 0;
+            else if (sprite->penData.color.brightness > 100) sprite->penData.color.brightness = 100;
+            return BlockResult::CONTINUE;
+        }
+        if (option == "transparency") {
+            sprite->penData.transparency = Scratch::getInputValue(block, "VALUE", sprite).asDouble();
+            if (sprite->penData.transparency < 0) sprite->penData.transparency = 0;
+            else if (sprite->penData.transparency > 100) sprite->penData.transparency = 100;
+            return BlockResult::CONTINUE;
+        }
     }
 
-    Log::log("Unknown pen option: " + option);
+    Log::log("Unknown pen option!");
 
     return BlockResult::CONTINUE;
 }
 
 BlockResult PenBlocks::ChangePenOptionBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    const std::string option = Scratch::getFieldValue(block, "COLOR_PARAM");
 
-    if (option == "color") {
-        sprite->penData.color.hue += Scratch::getInputValue(block, "VALUE", sprite).asInt() % 100;
-        return BlockResult::CONTINUE;
-    }
-    if (option == "saturation") {
-        sprite->penData.color.saturation += Scratch::getInputValue(block, "VALUE", sprite).asDouble();
-        if (sprite->penData.color.saturation < 0) sprite->penData.color.saturation = 0;
-        else if (sprite->penData.color.saturation > 100) sprite->penData.color.saturation = 100;
-        return BlockResult::CONTINUE;
-    }
-    if (option == "brightness") {
-        sprite->penData.color.brightness += Scratch::getInputValue(block, "VALUE", sprite).asDouble();
-        if (sprite->penData.color.brightness < 0) sprite->penData.color.brightness = 0;
-        else if (sprite->penData.color.brightness > 100) sprite->penData.color.brightness = 100;
-        return BlockResult::CONTINUE;
-    }
-    if (option == "transparency") {
-        sprite->penData.transparency += Scratch::getInputValue(block, "VALUE", sprite).asDouble();
-        if (sprite->penData.transparency < 0) sprite->penData.transparency = 0;
-        else if (sprite->penData.transparency > 100) sprite->penData.transparency = 100;
-        return BlockResult::CONTINUE;
-    }
+    Block *optionBlock = findBlock(Scratch::getInputValue(block, "COLOR_PARAM", sprite).asString());
 
-    Log::log("Unknown pen option: " + option);
+    if (optionBlock != nullptr) {
+
+        const std::string option = Scratch::getFieldValue(block, "COLOR_PARAM");
+
+        if (option == "color") {
+            sprite->penData.color.hue += Scratch::getInputValue(block, "VALUE", sprite).asInt() % 100;
+            return BlockResult::CONTINUE;
+        }
+        if (option == "saturation") {
+            sprite->penData.color.saturation += Scratch::getInputValue(block, "VALUE", sprite).asDouble();
+            if (sprite->penData.color.saturation < 0) sprite->penData.color.saturation = 0;
+            else if (sprite->penData.color.saturation > 100) sprite->penData.color.saturation = 100;
+            return BlockResult::CONTINUE;
+        }
+        if (option == "brightness") {
+            sprite->penData.color.brightness += Scratch::getInputValue(block, "VALUE", sprite).asDouble();
+            if (sprite->penData.color.brightness < 0) sprite->penData.color.brightness = 0;
+            else if (sprite->penData.color.brightness > 100) sprite->penData.color.brightness = 100;
+            return BlockResult::CONTINUE;
+        }
+        if (option == "transparency") {
+            sprite->penData.transparency += Scratch::getInputValue(block, "VALUE", sprite).asDouble();
+            if (sprite->penData.transparency < 0) sprite->penData.transparency = 0;
+            else if (sprite->penData.transparency > 100) sprite->penData.transparency = 100;
+            return BlockResult::CONTINUE;
+        }
+    }
+    Log::log("Unknown pen option!");
 
     return BlockResult::CONTINUE;
 }
@@ -156,7 +167,7 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
 
     sprite->spriteWidth = image->textureRect.w / 2;
     sprite->spriteHeight = image->textureRect.h / 2;
-    if (image->isSVG) {
+    if (sprite->costumes[sprite->currentCostume].isSVG) {
         sprite->spriteWidth *= 2;
         sprite->spriteHeight *= 2;
     }
