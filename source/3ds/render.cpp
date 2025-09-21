@@ -150,6 +150,33 @@ int Render::getHeight() {
 }
 
 void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite) {
+    const ColorRGB rgbColor = HSB2RGB(sprite->penData.color);
+    C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+    C3D_FrameDrawOn(penRenderTarget);
+    C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
+
+    const float heightMultiplier = 0.5f;
+    const float scaleX = static_cast<double>(SCREEN_WIDTH) / Scratch::projectWidth;
+    const float scaleY = static_cast<double>(SCREEN_HEIGHT) / Scratch::projectHeight;
+    const float scale = std::min(scaleX, scaleY);
+    const u32 color = C2D_Color32(rgbColor.r, rgbColor.g, rgbColor.b, 255);
+    const int thickness = std::clamp(static_cast<int>(sprite->penData.size * scale), 1, 1000);
+
+    const float x1_scaled = (x1 * scale) + (SCREEN_WIDTH / 2);
+    const float y1_scaled = (y1 * -1 * scale) + (SCREEN_HEIGHT * heightMultiplier);
+    const float x2_scaled = (x2 * scale) + (SCREEN_WIDTH / 2);
+    const float y2_scaled = (y2 * -1 * scale) + (SCREEN_HEIGHT * heightMultiplier);
+
+    C2D_DrawLine(x1_scaled, y1_scaled, color, x2_scaled, y2_scaled, color, thickness, 0);
+
+    // Draw circles at both ends for smooth line caps
+    const float radius = thickness / 2.0f;
+
+    // Circle at start point
+    C2D_DrawCircleSolid(x1_scaled, y1_scaled, 0, radius, color);
+
+    // Circle at end point
+    C2D_DrawCircleSolid(x2_scaled, y2_scaled, 0, radius, color);
 }
 
 void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {

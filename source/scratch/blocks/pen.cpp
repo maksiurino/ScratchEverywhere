@@ -29,6 +29,26 @@ BlockResult PenBlocks::PenDown(Block &block, Sprite *sprite, bool *withoutScreen
     filledCircleRGBA(renderer, sprite->xPosition + 240, -sprite->yPosition + 180, sprite->penData.size / 2, rgbColor.r, rgbColor.g, rgbColor.b, 255);
     SDL_SetRenderTarget(renderer, nullptr);
 #elif defined(__3DS__)
+    // TODO: simplify this code
+    const ColorRGB rgbColor = HSB2RGB(sprite->penData.color);
+    C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+    C3D_FrameDrawOn(penRenderTarget);
+    C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
+
+    const int SCREEN_WIDTH = 400;
+    const int SCREEN_HEIGHT = 240;
+
+    const float heightMultiplier = 0.5f;
+    const float scaleX = static_cast<double>(SCREEN_WIDTH) / Scratch::projectWidth;
+    const float scaleY = static_cast<double>(SCREEN_HEIGHT) / Scratch::projectHeight;
+    const float scale = std::min(scaleX, scaleY);
+    const u32 color = C2D_Color32(rgbColor.r, rgbColor.g, rgbColor.b, 255);
+    const int thickness = std::clamp(static_cast<int>(sprite->penData.size * scale), 1, 1000);
+
+    const float xSscaled = (sprite->xPosition * scale) + (SCREEN_WIDTH / 2);
+    const float yScaled = (sprite->yPosition * -1 * scale) + (SCREEN_HEIGHT * heightMultiplier);
+    const float radius = thickness / 2.0f;
+    C2D_DrawCircleSolid(xSscaled, yScaled, 0, radius, color);
 #endif
 
     return BlockResult::CONTINUE;
