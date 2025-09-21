@@ -210,6 +210,7 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
 #elif defined(__3DS__)
 
 BlockResult PenBlocks::EraseAll(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    C3D_RenderTargetClear(penRenderTarget, C3D_CLEAR_ALL, C2D_Color32(0, 0, 0, 0), 0);
     return BlockResult::CONTINUE;
 }
 

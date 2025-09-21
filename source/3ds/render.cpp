@@ -82,10 +82,11 @@ bool Render::Init() {
     penImage.subtex = &penSubtex;
 
     if (!C3D_TexInitVRAM(penImage.tex, penTex->width, penTex->height, GPU_RGBA8)) { // TODO: Support other resolutions.
+        penRenderTarget = nullptr;
         Log::logError("failed to create pen texture.");
     } else {
         penRenderTarget = C3D_RenderTargetCreateFromTex(penImage.tex, GPU_TEXFACE_2D, 0, GPU_RB_DEPTH16);
-        C3D_RenderTargetClear(penRenderTarget, C3D_CLEAR_ALL, C2D_Color32(255, 255, 255, 0), 0);
+        C3D_RenderTargetClear(penRenderTarget, C3D_CLEAR_ALL, C2D_Color32(0, 0, 0, 0), 0);
     }
 
 #ifdef ENABLE_CLOUDVARS
@@ -377,9 +378,12 @@ void Render::renderSprites() {
     if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
         C2D_SceneBegin(topScreen);
         C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
-        C2D_DrawImageAtRotated(penImage, SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.5, 0, M_PI, nullptr, 1.0f, 1.0f);
 
         for (size_t i = 0; i < spritesByLayer.size(); i++) {
+
+            // render the pen texture above the backdrop, but below every other sprite
+            if (i == 1) C2D_DrawImageAtRotated(penImage, SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.5, 0, M_PI, nullptr, 1.0f, 1.0f);
+
             Sprite *currentSprite = spritesByLayer[i];
             if (!currentSprite->visible) continue;
 
@@ -413,6 +417,10 @@ void Render::renderSprites() {
         C2D_SceneBegin(topScreenRightEye);
 
         for (size_t i = 0; i < spritesByLayer.size(); i++) {
+
+            // render the pen texture above the backdrop, but below every other sprite
+            if (i == 1) C2D_DrawImageAtRotated(penImage, SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.5, 0, M_PI, nullptr, 1.0f, 1.0f);
+
             Sprite *currentSprite = spritesByLayer[i];
             if (!currentSprite->visible) continue;
 
@@ -537,8 +545,10 @@ void Render::deInit() {
     socExit();
 #endif
 
-    C3D_RenderTargetDelete(penRenderTarget);
-    C3D_TexDelete(penImage.tex);
+    if (penRenderTarget != nullptr) {
+        C3D_RenderTargetDelete(penRenderTarget);
+        C3D_TexDelete(penImage.tex);
+    }
 
     Image::cleanupImages();
     SoundPlayer::cleanupAudio();
