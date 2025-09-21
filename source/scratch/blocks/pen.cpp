@@ -224,7 +224,7 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
     double scaleY = static_cast<double>(SCREEN_HEIGHT) / Scratch::projectHeight;
     double spriteSizeX = sprite->size * 0.01;
     double spriteSizeY = sprite->size * 0.01;
-    if (0 == 1) { // TODO: wait for main merge to use `sprite->costumes[sprite->currentCostume].isSVG`
+    if (sprite->costumes[sprite->currentCostume].isSVG) {
         spriteSizeX *= 2;
         spriteSizeY *= 2;
     }

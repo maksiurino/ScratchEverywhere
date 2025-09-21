@@ -68,16 +68,17 @@ bool Render::Init() {
     // texture dimensions must be a power of 2. subtex dimensions can be the actual resolution.
     penTex = new C3D_Tex();
     penTex->width = 512;
-    penTex->height = 512;
+    penTex->height = 256;
     penImage.tex = penTex;
 
     penSubtex = {
-        480,
-        360,
+        400,
+        240,
         0,
         0,
         1,
         1};
+
     penImage.subtex = &penSubtex;
 
     if (!C3D_TexInitVRAM(penImage.tex, penTex->width, penTex->height, GPU_RGBA8)) { // TODO: Support other resolutions.
@@ -376,7 +377,7 @@ void Render::renderSprites() {
     if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
         C2D_SceneBegin(topScreen);
         C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
-        C2D_DrawImageAt(penImage, 0, 0, 0, nullptr, 1.0f, 1.0f);
+        C2D_DrawImageAtRotated(penImage, 0, 0, 0, 0.5, nullptr, 1.0f, 1.0f);
 
         for (size_t i = 0; i < spritesByLayer.size(); i++) {
             Sprite *currentSprite = spritesByLayer[i];
