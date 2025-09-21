@@ -377,7 +377,7 @@ void Render::renderSprites() {
     if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
         C2D_SceneBegin(topScreen);
         C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
-        C2D_DrawImageAtRotated(penImage, 0, 0, 0, 0.5, nullptr, 1.0f, 1.0f);
+        C2D_DrawImageAtRotated(penImage, SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.5, 0, M_PI, nullptr, 1.0f, 1.0f);
 
         for (size_t i = 0; i < spritesByLayer.size(); i++) {
             Sprite *currentSprite = spritesByLayer[i];
