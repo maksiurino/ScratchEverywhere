@@ -51,6 +51,10 @@ char nickname[0x21];
 #include <romfs-ogc.h>
 #endif
 
+#ifdef GAMECUBE
+#include <sdcard/gcsd.h>
+#endif
+
 int windowWidth = 540;
 int windowHeight = 405;
 SDL_Window *window = nullptr;
@@ -130,6 +134,9 @@ bool Render::Init() {
 
     accountProfileClose(&profile);
     accountExit();
+
+    windowWidth = 1280;
+    windowHeight = 720;
 postAccount:
 #elif defined(__OGC__)
     SYS_STDIO_Report(true);
@@ -141,6 +148,12 @@ postAccount:
         Log::logError("Failed to init romfs.");
         return false;
     }
+
+#ifdef GAMECUBE
+    if (!fatMountSimple("carda", &__io_gcsda))
+        Log::logError("Failed to initialize SD card.");
+#endif
+
 #elif defined(VITA)
     SDL_setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
 
@@ -373,9 +386,12 @@ void Render::renderSprites() {
             image->setScale((currentSprite->size * 0.01) * scale / 2.0f);
             currentSprite->spriteWidth = image->textureRect.w / 2;
             currentSprite->spriteHeight = image->textureRect.h / 2;
-            if (image->isSVG) {
+
+            // double the image scale if the image is an SVG
+            if (currentSprite->costumes[currentSprite->currentCostume].isSVG) {
                 image->setScale(image->scale * 2);
             }
+
             const double rotation = Math::degreesToRadians(currentSprite->rotation - 90.0f);
             double renderRotation = rotation;
             if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT) {
@@ -450,7 +466,7 @@ void Render::renderSprites() {
         // std::vector<std::pair<double, double>> collisionPoints = getCollisionPoints(currentSprite);
         // SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Black points
 
-        // for (const auto& point : collisionPoints) {
+        // for (const auto &point : collisionPoints) {
         //     double screenX = (point.first * scale) + (windowWidth / 2);
         //     double screenY = (point.second * -scale) + (windowHeight / 2);
 
@@ -471,6 +487,7 @@ void Render::renderSprites() {
 
     SDL_RenderPresent(renderer);
     Image::FlushImages();
+    SoundPlayer::flushAudio();
 }
 
 std::unordered_map<std::string, TextObject *> Render::monitorTexts;

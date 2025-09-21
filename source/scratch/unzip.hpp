@@ -5,6 +5,8 @@
 #ifdef GAMECUBE
 #include <dirent.h>
 #include <gccore.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #endif
 
 #ifdef ENABLE_CLOUDVARS
@@ -17,6 +19,7 @@ class Unzip {
     static std::string loadingState;
     static volatile bool threadFinished;
     static std::string filePath;
+    static bool UnpackedInSD;
     static mz_zip_archive zipArchive;
     static std::vector<char> zipBuffer;
     static void *trackedBufferPtr;
@@ -26,6 +29,7 @@ class Unzip {
 
     static void openScratchProject(void *arg) {
         loadingState = "Opening Scratch project";
+        Unzip::UnpackedInSD = false;
         std::ifstream file;
         int isFileOpen = openFile(&file);
         if (isFileOpen == 0) {
@@ -56,11 +60,11 @@ class Unzip {
 
 #ifdef GAMECUBE
     // use libogc for gamecube because i guess it doesn't support std::filesystem
-    static std::vector<std::string> getProjectFiles(const std::string directory) {
+    static std::vector<std::string> getProjectFiles(const std::string &directory) {
         std::vector<std::string> projectFiles;
         DIR *dir = opendir(directory.c_str());
         if (dir == nullptr) {
-            return projectFiles; // Return empty if directory can't be opened
+            return projectFiles;
         }
 
         struct dirent *entry;
@@ -79,6 +83,10 @@ class Unzip {
 
         if (!std::filesystem::exists(directory)) {
             Log::logWarning("Directory does not exist! " + directory);
+            try {
+                std::filesystem::create_directory(directory);
+            } catch (...) {
+            }
             return projectFiles;
         }
 
@@ -199,13 +207,25 @@ class Unzip {
             }
 
         } else {
-            // unzipped project handling...
             file->clear();
             file->seekg(0, std::ios::beg);
+
+            // get file size
+            file->seekg(0, std::ios::end);
+            std::streamsize size = file->tellg();
+            file->seekg(0, std::ios::beg);
+
+            // put file into string
+            std::string json_content;
+            json_content.reserve(size);
+            json_content.assign(std::istreambuf_iterator<char>(*file),
+                                std::istreambuf_iterator<char>());
+
 #ifdef ENABLE_CLOUDVARS
-            projectJSON = {std::istreambuf_iterator<char>(*file), std::istreambuf_iterator<char>()};
+            projectJSON = json_content;
 #endif
-            (*file) >> project_json;
+
+            project_json = nlohmann::json::parse(json_content);
         }
         return project_json;
     }
@@ -213,4 +233,90 @@ class Unzip {
     static int openFile(std::ifstream *file);
 
     static bool load();
+
+    static bool extractProject(const std::string &zipPath, const std::string &destFolder) {
+        mz_zip_archive zip;
+        memset(&zip, 0, sizeof(zip));
+        if (!mz_zip_reader_init_file(&zip, zipPath.c_str(), 0)) {
+            Log::logError("Failed to open zip: " + zipPath);
+            return false;
+        }
+
+        int numFiles = (int)mz_zip_reader_get_num_files(&zip);
+        for (int i = 0; i < numFiles; i++) {
+            mz_zip_archive_file_stat st;
+            if (!mz_zip_reader_file_stat(&zip, i, &st)) continue;
+            std::string filename(st.m_filename);
+
+            if (filename.find('/') != std::string::npos || filename.find('\\') != std::string::npos)
+                continue;
+
+#ifdef GAMECUBE
+            mkdir(destFolder.c_str(), 0777);
+#endif
+            std::string outPath = destFolder + "/" + filename;
+
+#ifndef GAMECUBE
+            std::filesystem::create_directories(std::filesystem::path(outPath).parent_path());
+#endif
+
+            if (!mz_zip_reader_extract_to_file(&zip, i, outPath.c_str(), 0)) {
+                Log::logError("Failed to extract: " + outPath);
+                mz_zip_reader_end(&zip);
+                return false;
+            }
+        }
+
+        mz_zip_reader_end(&zip);
+        return true;
+    }
+
+    static bool deleteProjectFolder(const std::string &directory) {
+        if (!std::filesystem::exists(directory)) {
+            Log::logWarning("Directory does not exist: " + directory);
+            return false;
+        }
+
+        if (!std::filesystem::is_directory(directory)) {
+            Log::logWarning("Path is not a directory: " + directory);
+            return false;
+        }
+
+        try {
+            std::filesystem::remove_all(directory);
+            return true;
+        } catch (const std::filesystem::filesystem_error &e) {
+            Log::logError(std::string("Failed to delete folder: ") + e.what());
+            return false;
+        }
+    }
+
+    static nlohmann::json getSetting(const std::string &settingName) {
+        std::string folderPath = OS::getScratchFolderLocation() + filePath + ".json";
+
+        std::ifstream file(folderPath);
+        if (!file.good()) {
+            Log::logError("JSON file not found: " + folderPath);
+            return nlohmann::json();
+        }
+
+        nlohmann::json json;
+        try {
+            file >> json;
+        } catch (const nlohmann::json::parse_error &e) {
+            Log::logError("Failed to parse JSON file: " + std::string(e.what()));
+            file.close();
+            return nlohmann::json();
+        }
+        file.close();
+
+        if (!json.contains("settings")) {
+            return nlohmann::json();
+        }
+        if (!json["settings"].contains(settingName)) {
+            return nlohmann::json();
+        }
+
+        return json["settings"][settingName];
+    }
 };

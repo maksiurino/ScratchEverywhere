@@ -12,13 +12,22 @@ It's on your {PlatformName}!
 Magic for your {PlatformName}!
 Straight from your {PlatformName}!
 On your {PlatformName}!
-Coming soon to a console near you!
+Oooh, nice {PlatformName} you got here! Can I have it?
 {PlatformName} on Scratch! ... Wait that's not right.
+...even on your {PlatformName}!
+Coming soon to a console near you!
 Run it all, everything!
+Scratch is the new Doom!
+"It's dot com!"
+;
+This splash text was eaten by an evil kumquat.
+0.1 + 0.2 = 0.30000000000000004!
 You'll love it!
 Magic!
 Try it out!!!!
 Join the Discord Server!
+Contribute on GitHub!
+Formerly Scratch-3DS!
 Runtime by NateXS!
 3DS port by NateXS!
 Wii port by NateXS!
@@ -29,6 +38,8 @@ Switch port by Grady Link!
 PS Vita port by Dogo6647!
 C++!
 devkitPro!
+vitasdk!
+SDL!
 It works! (most of the time...)
 Woah.
 Are wii gonna have a problem?
@@ -42,3 +53,4 @@ As seen on YouTube!
 PolyMars approved!
 May contain nuts!
 What do you expect?
+(Exclamation mark required!)

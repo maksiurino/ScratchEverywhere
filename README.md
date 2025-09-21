@@ -70,12 +70,16 @@ Join https://discord.gg/Y2gf5vZHpJ if you need any help with Scratch Everywhere!
 - The `Touching __?` block uses simpler box collision, which may lead to projects working incorrectly.
 - The `Stop 'All'` block brings you back to the project menu.
 
+### Special Custom Blocks
+
+Like TurboWarp we have special custom blocks that only work on SE! You can find a project containing and explaining them here: https://scratchbox.grady.link/project/K26OtTN2WDJ9
+
 ## Limitations
 
 As this is in a very work in progress state, you will encounter many bugs, crashes, and things that will just not work. 
 
 **List of Known Limitations:**
-- Text will not show up on vector images containing it.
+- Text and embedded bitmap images will not show up on vector images containing it.
 - Extensions (e.g. pen and music extensions) are not yet supported.
 - Some blocks may lead to crashing/unintended behavior (Please open an issue if you know of a block that's causing problems).
 - Performance is poor when using many (~30+) clones (memory management issue).
@@ -86,7 +90,6 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 - **[GameCube]** The GameCube has very little memory, so try to keep projects small.
 - **[3DS]** Performace is poor when lots of blocks are running at once.
 - **[3DS]** If you have a bunch of large images, some may not load.
-- **[3DS]** Some vector images will appear bigger than they should.
 - **[Vita]** Back touch will not be supported.
 
 
@@ -208,7 +211,7 @@ Then it should be as simple as opening the app on your Nintendo Switch!
 ### Get up and running for Vita
 
 > [!NOTE]
-> Scratch Everywhere! for PS Vita is also on [VitaDB](https://www.rinnegatamante.eu/vitadb/#/info/1320), so you can just download it there and keep it updated that way!
+> Scratch Everywhere! for PS Vita is also on [VitaDB](https://www.rinnegatamante.eu/vitadb/#/info/1320), so you can just download it directly from your Vita using VitaDB Downloader! Do note however, the build on VitaDB might be a few versions behind.
 
 Download the `scratch-vita.vpk` file from the releases tab or [nightly build](https://nightly.link/ScratchEverywhere/ScratchEverywhere/workflows/nightly-vita/main/Scratch%20Everywhere!%20Vita%20Nightly.zip), transfer it over to the Vita's storage, and install it using VitaShell on your Vita.
 
@@ -273,9 +276,9 @@ Then you need to compile the projects into proper Homebrew packages.
 
 #### Compilation Flags
 
-Compilation flags are used to select which features will be enabled in the compiled version of Scratch Everywhere!. To use a compilation flag simply add it to the end of the make command (e.g. `make ENABLE_BUBBLES=0`).
+Compilation flags are used to select which features will be enabled in the compiled version of Scratch Everywhere!. To use a compilation flag simply add it to the end of the make command (e.g. `make ENABLE_LOADSCREEN=0`).
 
-- **[3DS, GameCube, Wii]** `ENABLE_BUBBLES` (default: `1`): If set to `1`, the loading screen is enabled, if set to `0` the screen is simply black during that time.
+- `ENABLE_LOADSCREEN` (default: `1`): If set to `1`, the loading screen is enabled, if set to `0` the screen is simply black during that time.
 - `ENABLE_AUDIO` (default: `1`): If set to `1`, Audio will be enabled. If set to `0`, it will be disabled.
 - `ENABLE_CLOUDVARS` (default: `0`): If set to `1`, cloud variable support is enabled, if set to `0` cloud variables are treated like normal variables. If your project doesn't use cloud variables, it is recommended to leave this turned off. If you run into errors while building try turning this off and see if that fixes the errors.
 - **[Old 3DS]** `RAM_AMOUNT` (default: `72`): the amount of RAM, in megabytes, the old 3DS should be using. Can be set to `32`, `64`, `72`, `80`, or `96`.

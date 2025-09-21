@@ -5,11 +5,11 @@
 
 class Image {
   private:
-    std::string imageId;
-    int width;
+        int width;
     int height;
 
   public:
+    std::string imageId;
     double scale;
     double opacity;
     double rotation;
@@ -27,12 +27,6 @@ class Image {
     int getHeight() { return height; }
 
     void render(double xPos, double yPos, bool centered = false);
-
-    /**
-     * `3DS`: Takes every Image in a Scratch sb3 file and converts them to RGBA data.
-     * `SDL`: Takes every image in a Scratch sb3 file and turns it into an 'SDL_Image' object.
-     */
-    static void loadImages(mz_zip_archive *zip);
 
     /**
      * `3DS`: Turns a single image from an unzipped Scratch project into RGBA data.

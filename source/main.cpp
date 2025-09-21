@@ -48,6 +48,8 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    srand(time(NULL));
+
     if (!Unzip::load()) {
 
         if (Unzip::projectOpened == -3) { // main menu

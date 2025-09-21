@@ -1,5 +1,6 @@
 #include "../scratch/image.hpp"
 #include "../scratch/os.hpp"
+#include "../scratch/unzip.hpp"
 #include "image.hpp"
 #include "miniz/miniz.h"
 #include "render.hpp"
@@ -67,89 +68,6 @@ void Image::render(double xPos, double yPos, bool centered) {
 }
 
 /**
- * Takes every image in a Scratch sb3 file and turns it into an 'SDL_Image' object.
- * @param zip
- */
-void Image::loadImages(mz_zip_archive *zip) {
-    // Log::log("Loading images...");
-    // int file_count = (int)mz_zip_reader_get_num_files(zip);
-
-    // for (int i = 0; i < file_count; i++) {
-    //     mz_zip_archive_file_stat file_stat;
-    //     if (!mz_zip_reader_file_stat(zip, i, &file_stat)) continue;
-
-    //     std::string zipFileName = file_stat.m_filename;
-
-    //     // Check if file is bitmap, or SVG
-    //     bool isBitmap = zipFileName.size() >= 4 &&
-    //                     (zipFileName.substr(zipFileName.size() - 4) == ".png" ||
-    //                      zipFileName.substr(zipFileName.size() - 4) == ".PNG" ||
-    //                      zipFileName.substr(zipFileName.size() - 4) == ".jpg" ||
-    //                      zipFileName.substr(zipFileName.size() - 4) == ".JPG");
-    //     bool isSVG = zipFileName.size() >= 4 &&
-    //                  (zipFileName.substr(zipFileName.size() - 4) == ".svg" ||
-    //                   zipFileName.substr(zipFileName.size() - 4) == ".SVG");
-
-    //     if (isBitmap || isSVG) {
-
-    //         size_t file_size;
-    //         void *file_data = mz_zip_reader_extract_to_heap(zip, i, &file_size, 0);
-    //         if (!file_data) {
-    //             Log::logWarning("Failed to extract: " + zipFileName);
-    //             continue;
-    //         }
-
-    //         // Use SDL_RWops to load image from memory
-    //         SDL_RWops *rw = SDL_RWFromMem(file_data, file_size);
-    //         if (!rw) {
-    //             Log::logWarning("Failed to create RWops for: " + zipFileName);
-    //             mz_free(file_data);
-    //             continue;
-    //         }
-
-    //         SDL_Surface *surface = IMG_Load_RW(rw, 0);
-    //         SDL_RWclose(rw);
-    //         mz_free(file_data);
-
-    //         if (!surface) {
-    //             Log::logWarning("Failed to load image from memory: " + zipFileName);
-    //             continue;
-    //         }
-
-    //         SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
-    //         if (!texture) {
-    //             Log::logWarning("Failed to create texture: " + zipFileName);
-    //             SDL_FreeSurface(surface);
-    //             continue;
-    //         }
-
-    //         // Track texture memory usage
-    //         int width, height;
-    //         SDL_QueryTexture(texture, nullptr, nullptr, &width, &height);
-    //         size_t textureMemory = width * height * 4;
-    //         MemoryTracker::allocate(textureMemory);
-
-    //         SDL_FreeSurface(surface);
-
-    //         // Build SDL_Image object
-    //         SDL_Image *image = MemoryTracker::allocate<SDL_Image>();
-    //         new (image) SDL_Image();
-    //         if (isSVG) image->isSVG = true;
-    //         image->spriteTexture = texture;
-    //         SDL_QueryTexture(texture, nullptr, nullptr, &image->width, &image->height);
-    //         image->renderRect = {0, 0, image->width, image->height};
-    //         image->textureRect = {0, 0, image->width, image->height};
-
-    //         image->memorySize = textureMemory;
-
-    //         // Strip extension from filename for the ID
-    //         std::string imgId = zipFileName.substr(0, zipFileName.find_last_of('.'));
-    //         images[imgId] = image;
-    //     }
-    // }
-}
-
-/**
  * Loads a single `SDL_Image` from an unzipped filepath .
  * @param filePath
  */
@@ -164,17 +82,10 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
         finalPath = finalPath + "project/";
 
     finalPath = finalPath + filePath;
-
+    if (Unzip::UnpackedInSD) finalPath = Unzip::filePath + filePath;
     // SDL_Image *image = new SDL_Image(finalPath);
     SDL_Image *image = MemoryTracker::allocate<SDL_Image>();
     new (image) SDL_Image(finalPath);
-
-    // Check if it's an SVG file
-    bool isSVG = filePath.size() >= 4 &&
-                 (filePath.substr(filePath.size() - 4) == ".svg" ||
-                  filePath.substr(filePath.size() - 4) == ".SVG");
-
-    if (isSVG) image->isSVG = true;
 
     // Track texture memory
     if (image->spriteTexture) {
@@ -213,20 +124,18 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
     }
 
     // Check if file is bitmap or SVG
-    bool isBitmap = costumeId.size() > 4 && ([](std::string ext) {
+    bool isSupported = costumeId.size() > 4 && ([](std::string ext) {
                         std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
                         return ext == ".bmp" || ext == ".gif" || ext == ".jpg" || ext == ".jpeg" ||
                                ext == ".lbm" || ext == ".iff" || ext == ".pcx" || ext == ".png" ||
                                ext == ".pnm" || ext == ".ppm" || ext == ".pgm" || ext == ".pbm" ||
                                ext == ".qoi" || ext == ".tga" || ext == ".tiff" || ext == ".xcf" ||
                                ext == ".xpm" || ext == ".xv" || ext == ".ico" || ext == ".cur" ||
-                               ext == ".ani" || ext == ".webp" || ext == ".avif" || ext == ".jxl";
+                               ext == ".ani" || ext == ".webp" || ext == ".avif" || ext == ".jxl" ||
+                               ext == ".svg";
                     }(costumeId.substr(costumeId.find_last_of('.'))));
-    bool isSVG = costumeId.size() >= 4 &&
-                 (costumeId.substr(costumeId.size() - 4) == ".svg" ||
-                  costumeId.substr(costumeId.size() - 4) == ".SVG");
 
-    if (!isBitmap && !isSVG) {
+    if (!isSupported) {
         Log::logWarning("File is not a supported image format: " + costumeId);
         return;
     }
@@ -269,7 +178,6 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
     // Build SDL_Image object
     SDL_Image *image = MemoryTracker::allocate<SDL_Image>();
     new (image) SDL_Image();
-    if (isSVG) image->isSVG = true;
     image->spriteTexture = texture;
     SDL_QueryTexture(texture, nullptr, nullptr, &image->width, &image->height);
     image->renderRect = {0, 0, image->width, image->height};

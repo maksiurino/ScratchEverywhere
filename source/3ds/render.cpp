@@ -270,7 +270,7 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
         scaleY = static_cast<double>(SCREEN_HEIGHT) / (Scratch::projectHeight / 2.0);
         heightMultiplier = 1.0;
     }
-    scale = bottom ? 1.0 : std::min(scaleX, scaleY);
+    scale = (bottom && Render::renderMode != Render::BOTTOM_SCREEN_ONLY) ? 1.0 : std::min(scaleX, scaleY);
 
     if (!legacyDrawing) {
         double rotation = Math::degreesToRadians(currentSprite->rotation - 90.0f);
@@ -356,10 +356,7 @@ void Render::renderSprites() {
     C2D_TargetClear(topScreen, clrWhite);
     C2D_TargetClear(topScreenRightEye, clrWhite);
     C2D_TargetClear(bottomScreen, clrWhite);
-
-    // C3D_FrameDrawOn(penRenderTarget);
-    // C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
-    // C2D_DrawRectSolid(100, 100, 0, 32, 32, C2D_Color32(0, 0, 0, 255));
+    C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
 
     float slider = osGet3DSliderState();
     const float depthScale = 8.0f / sprites.size();
@@ -413,7 +410,6 @@ void Render::renderSprites() {
     // ---------- RIGHT EYE ----------
     if (slider > 0.0f && Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
         C2D_SceneBegin(topScreenRightEye);
-        C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
 
         for (size_t i = 0; i < spritesByLayer.size(); i++) {
             Sprite *currentSprite = spritesByLayer[i];
@@ -469,13 +465,18 @@ void Render::renderSprites() {
             }
         }
 
-        if (Render::renderMode != Render::BOTH_SCREENS)
+        if (Render::renderMode != Render::BOTH_SCREENS) {
             drawBlackBars(BOTTOM_SCREEN_WIDTH, SCREEN_HEIGHT);
+            renderVisibleVariables();
+        }
     }
 
-    C2D_Flush();
     C3D_FrameEnd(0);
+    C2D_Flush();
     Image::FlushImages();
+#ifdef ENABLE_AUDIO
+    SoundPlayer::flushAudio();
+#endif
     osSetSpeedupEnable(true);
 }
 
