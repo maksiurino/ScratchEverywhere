@@ -1,8 +1,13 @@
 #include "pen.hpp"
 
 #ifdef __3DS__
+#include "../../3ds/image.hpp"
+#include <citro2d.h>
+#include <citro3d.h>
 C2D_Image penImage;
 C3D_RenderTarget *penRenderTarget;
+Tex3DS_SubTexture penSubtex;
+C3D_Tex *penTex;
 #elif defined(SDL_BUILD)
 #include "../../sdl/render.hpp"
 #include <SDL2/SDL2_gfxPrimitives.h>
@@ -191,13 +196,88 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
 
     return BlockResult::CONTINUE;
 }
-#else
+#elif defined(__3DS__)
 
 BlockResult PenBlocks::EraseAll(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     return BlockResult::CONTINUE;
 }
 
 BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+
+    const int SCREEN_WIDTH = 400;
+    const int SCREEN_HEIGHT = 240;
+
+    const auto &imgFind = imageC2Ds.find(sprite->costumes[sprite->currentCostume].id);
+    if (imgFind == imageC2Ds.end()) {
+        Log::logWarning("Invalid Image for Stamp");
+        return BlockResult::CONTINUE;
+    }
+
+    C2D_Image *costumeTexture = &imgFind->second.image;
+    C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+    C3D_FrameDrawOn(penRenderTarget);
+    C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
+
+    // TODO: remove duplicate code (maybe make a Render::drawSprite function.)
+
+    double scaleX = static_cast<double>(SCREEN_WIDTH) / Scratch::projectWidth;
+    double scaleY = static_cast<double>(SCREEN_HEIGHT) / Scratch::projectHeight;
+    double spriteSizeX = sprite->size * 0.01;
+    double spriteSizeY = sprite->size * 0.01;
+    if (0 == 1) { // TODO: wait for main merge to use `sprite->costumes[sprite->currentCostume].isSVG`
+        spriteSizeX *= 2;
+        spriteSizeY *= 2;
+    }
+    double scale;
+    double heightMultiplier = 0.5;
+    int screenWidth = SCREEN_WIDTH;
+    scale = std::min(scaleX, scaleY);
+
+    double rotation = Math::degreesToRadians(sprite->rotation - 90.0f);
+    bool flipX = false;
+
+    // check for rotation style
+    if (sprite->rotationStyle == sprite->LEFT_RIGHT) {
+        if (std::cos(rotation) < 0) {
+            spriteSizeX *= -1;
+            flipX = true;
+        }
+        rotation = 0;
+    }
+    if (sprite->rotationStyle == sprite->NONE) {
+        rotation = 0;
+    }
+
+    // Center the sprite's pivot point
+    double rotationCenterX = ((((sprite->rotationCenterX - sprite->spriteWidth)) / 2) * scale);
+    double rotationCenterY = ((((sprite->rotationCenterY - sprite->spriteHeight)) / 2) * scale);
+    if (flipX) rotationCenterX -= sprite->spriteWidth;
+
+    const double offsetX = rotationCenterX * spriteSizeX;
+    const double offsetY = rotationCenterY * spriteSizeY;
+
+    C2D_ImageTint tinty;
+
+    // set ghost and brightness effect
+    if (sprite->brightnessEffect != 0.0f || sprite->ghostEffect != 0.0f) {
+        float brightnessEffect = sprite->brightnessEffect * 0.01f;
+        float alpha = 255.0f * (1.0f - sprite->ghostEffect / 100.0f);
+        if (brightnessEffect > 0)
+            C2D_PlainImageTint(&tinty, C2D_Color32(255, 255, 255, alpha), brightnessEffect);
+        else
+            C2D_PlainImageTint(&tinty, C2D_Color32(0, 0, 0, alpha), brightnessEffect);
+    } else C2D_AlphaImageTint(&tinty, 1.0f);
+
+    C2D_DrawImageAtRotated(
+        *costumeTexture,
+        static_cast<int>((sprite->xPosition * scale) + (screenWidth / 2) - offsetX * std::cos(rotation) + offsetY * std::sin(rotation)),
+        static_cast<int>((sprite->yPosition * -1 * scale) + (SCREEN_HEIGHT * heightMultiplier) - offsetX * std::sin(rotation) - offsetY * std::cos(rotation)),
+        1,
+        rotation,
+        &tinty,
+        (spriteSizeX)*scale / 2.0f,
+        (spriteSizeY)*scale / 2.0f);
+
     return BlockResult::CONTINUE;
 }
 #endif

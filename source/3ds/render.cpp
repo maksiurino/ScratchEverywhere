@@ -65,8 +65,13 @@ bool Render::Init() {
     topScreenRightEye = C2D_CreateScreenTarget(GFX_TOP, GFX_RIGHT);
     bottomScreen = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
 
-    C3D_TexInitVRAM(penImage.tex, 480, 360, GPU_RGBA8); // TODO: Support other resolutions.
-    Tex3DSpenSubtex penSubtex = {
+    // texture dimensions must be a power of 2. subtex dimensions can be the actual resolution.
+    penTex = new C3D_Tex();
+    penTex->width = 512;
+    penTex->height = 512;
+    penImage.tex = penTex;
+
+    penSubtex = {
         480,
         360,
         0,
@@ -74,7 +79,13 @@ bool Render::Init() {
         1,
         1};
     penImage.subtex = &penSubtex;
-    penRenderTarget = C3D_RenderTargetCreateFromTex(penImage.tex, GPU_TEXFACE_2D, 0, GPU_RB_DEPTH16);
+
+    if (!C3D_TexInitVRAM(penImage.tex, penTex->width, penTex->height, GPU_RGBA8)) { // TODO: Support other resolutions.
+        Log::logError("failed to create pen texture.");
+    } else {
+        penRenderTarget = C3D_RenderTargetCreateFromTex(penImage.tex, GPU_TEXFACE_2D, 0, GPU_RB_DEPTH16);
+        C3D_RenderTargetClear(penRenderTarget, C3D_CLEAR_ALL, C2D_Color32(255, 255, 255, 0), 0);
+    }
 
 #ifdef ENABLE_CLOUDVARS
     int ret;
@@ -199,6 +210,9 @@ void drawBlackBars(int screenWidth, int screenHeight) {
         C2D_DrawRectSolid(0, 0, 0.5f, screenWidth, barHeight, clrBlack);                        // Top bar
         C2D_DrawRectSolid(0, screenHeight - barHeight, 0.5f, screenWidth, barHeight, clrBlack); // Bottom bar
     }
+}
+
+void queueSpriteRender(Sprite *sprite, C2D_Image *image) {
 }
 
 void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId, bool bottom = false, float x3DOffset = 0.0f) {
@@ -343,6 +357,10 @@ void Render::renderSprites() {
     C2D_TargetClear(topScreenRightEye, clrWhite);
     C2D_TargetClear(bottomScreen, clrWhite);
 
+    // C3D_FrameDrawOn(penRenderTarget);
+    // C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
+    // C2D_DrawRectSolid(100, 100, 0, 32, 32, C2D_Color32(0, 0, 0, 255));
+
     float slider = osGet3DSliderState();
     const float depthScale = 8.0f / sprites.size();
 
@@ -361,6 +379,7 @@ void Render::renderSprites() {
     if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
         C2D_SceneBegin(topScreen);
         C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
+        C2D_DrawImageAt(penImage, 0, 0, 0, nullptr, 1.0f, 1.0f);
 
         for (size_t i = 0; i < spritesByLayer.size(); i++) {
             Sprite *currentSprite = spritesByLayer[i];
