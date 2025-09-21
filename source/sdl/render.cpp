@@ -249,11 +249,11 @@ void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite)
         vx[3] = static_cast<int16_t>(x2 + 240 - ny * (sprite->penData.size / 2));
         vy[3] = static_cast<int16_t>(-y2 + 180 + nx * (sprite->penData.size / 2));
 
-        filledPolygonRGBA(renderer, vx, vy, 4, rgbColor.r, rgbColor.g, rgbColor.b, sprite->penData.transparency / 100 * 255);
+        filledPolygonRGBA(renderer, vx, vy, 4, rgbColor.r, rgbColor.g, rgbColor.b, (sprite->penData.transparency - 100) / 100 * 255);
     }
 
-    filledCircleRGBA(renderer, x1 + 240, -y1 + 180, sprite->penData.size / 2, rgbColor.r, rgbColor.g, rgbColor.b, sprite->penData.transparency / 100 * 255);
-    filledCircleRGBA(renderer, x2 + 240, -y2 + 180, sprite->penData.size / 2, rgbColor.r, rgbColor.g, rgbColor.b, sprite->penData.transparency / 100 * 255);
+    filledCircleRGBA(renderer, x1 + 240, -y1 + 180, sprite->penData.size / 2, rgbColor.r, rgbColor.g, rgbColor.b, (sprite->penData.transparency - 100) / 100 * 255);
+    filledCircleRGBA(renderer, x2 + 240, -y2 + 180, sprite->penData.size / 2, rgbColor.r, rgbColor.g, rgbColor.b, (sprite->penData.transparency - 100) / 100 * 255);
 
     SDL_SetRenderTarget(renderer, nullptr);
 }
