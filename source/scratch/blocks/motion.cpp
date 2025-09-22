@@ -3,6 +3,7 @@
 #include "input.hpp"
 #include "interpret.hpp"
 #include "math.hpp"
+#include "render.hpp"
 #include "sprite.hpp"
 #include "value.hpp"
 #include <algorithm>

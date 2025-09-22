@@ -1,4 +1,5 @@
 #include "pen.hpp"
+#include "interpret.hpp"
 
 #ifdef __3DS__
 #include "../../3ds/image.hpp"
@@ -9,6 +10,7 @@ C3D_RenderTarget *penRenderTarget;
 Tex3DS_SubTexture penSubtex;
 C3D_Tex *penTex;
 #elif defined(SDL_BUILD)
+#include "../../sdl/image.hpp"
 #include "../../sdl/render.hpp"
 #include <SDL2/SDL2_gfxPrimitives.h>
 

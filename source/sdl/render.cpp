@@ -10,6 +10,7 @@
 #include "text.hpp"
 #include "unzip.hpp"
 #include <SDL2/SDL.h>
+#include <SDL2/SDL2_gfxPrimitives.h>
 #include <algorithm>
 #include <chrono>
 #include <cmath>
