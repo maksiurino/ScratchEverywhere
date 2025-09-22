@@ -1,11 +1,11 @@
 #include "mainMenu.hpp"
-#include "../audio.hpp"
-#include "../image.hpp"
-#include "../input.hpp"
-#include "../interpret.hpp"
-#include "../keyboard.hpp"
-#include "../render.hpp"
-#include "../unzip.hpp"
+#include "audio.hpp"
+#include "image.hpp"
+#include "input.hpp"
+#include "interpret.hpp"
+#include "keyboard.hpp"
+#include "render.hpp"
+#include "unzip.hpp"
 #include <cctype>
 #include <nlohmann/json.hpp>
 #ifdef __WIIU__
@@ -93,11 +93,10 @@ void MainMenu::init() {
         splashText->scale = (float)logo->image->getWidth() / (splashText->getSize()[0] * 1.15);
     }
 
-
     loadButton = new ButtonObject("", "gfx/menu/play.svg", 100, 180, "gfx/menu/Ubuntu-Bold");
     loadButton->isSelected = true;
     settingsButton = new ButtonObject("", "gfx/menu/settings.svg", 300, 180, "gfx/menu/Ubuntu-Bold");
-  
+
     mainMenuControl = new ControlObject();
     mainMenuControl->selectedObject = loadButton;
     loadButton->buttonRight = settingsButton;
