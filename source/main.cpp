@@ -2,6 +2,7 @@
 #include "scratch/menus/mainMenu.hpp"
 #include "scratch/render.hpp"
 #include "scratch/unzip.hpp"
+#include <cstdlib>
 
 #ifdef __SWITCH__
 #include <switch.h>
@@ -49,9 +50,30 @@ bool activateMainMenu() {
 
 void mainLoop() {
     Scratch::startScratchProject();
-    if (toExit || !activateMainMenu()) {
-        exitApp();
-        exit(0);
+    if (Scratch::nextProject) {
+        Log::log(Unzip::filePath);
+        if (!Unzip::load()) {
+
+            if (Unzip::projectOpened == -3) { // main menu
+
+                if (!activateMainMenu()) {
+                    exitApp();
+                    exit(0);
+                }
+
+            } else {
+                exitApp();
+                exit(0);
+            }
+        }
+    } else {
+        Unzip::filePath = "";
+        Scratch::nextProject = false;
+        Scratch::dataNextProject = Value();
+        if (toExit || !activateMainMenu()) {
+            exitApp();
+            exit(0);
+        }
     }
 }
 
@@ -78,7 +100,6 @@ int main(int argc, char **argv) {
     while (1)
         mainLoop();
 #endif
-
     exitApp();
     return 0;
 }
