@@ -90,7 +90,6 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 - **[GameCube]** The GameCube has very little memory, so try to keep projects small.
 - **[3DS]** Performace is poor when lots of blocks are running at once.
 - **[3DS]** If you have a bunch of large images, some may not load.
-- **[3DS]** Some vector images will appear bigger than they should.
 - **[Vita]** Back touch will not be supported.
 
 

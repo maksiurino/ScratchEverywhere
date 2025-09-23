@@ -1,14 +1,7 @@
-#include "../scratch/input.hpp"
-#include "../scratch/blockExecutor.hpp"
+#include "input.hpp"
+#include "blockExecutor.hpp"
 #include "render.hpp"
 #include "sprite.hpp"
-#include <SDL2/SDL_gamecontroller.h>
-#include <SDL2/SDL_keyboard.h>
-#include <SDL2/SDL_mouse.h>
-#include <SDL2/SDL_rect.h>
-#include <SDL2/SDL_scancode.h>
-#include <SDL2/SDL_stdinc.h>
-#include <SDL2/SDL_touch.h>
 #include <algorithm>
 #include <cctype>
 #include <cstddef>
@@ -53,6 +46,9 @@ extern SDL_Point touchPosition;
 extern std::string cloudUsername;
 extern bool cloudProject;
 #endif
+
+extern bool useCustomUsername;
+extern std::string customUsername;
 
 std::vector<int> Input::getTouchPosition() {
     std::vector<int> pos;
@@ -251,6 +247,9 @@ void Input::getInput() {
 }
 
 std::string Input::getUsername() {
+    if (useCustomUsername) {
+        return customUsername;
+    }
 #ifdef ENABLE_CLOUDVARS
     if (cloudProject) return cloudUsername;
 #endif

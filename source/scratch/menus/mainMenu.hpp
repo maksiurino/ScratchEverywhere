@@ -1,7 +1,7 @@
 #pragma once
-#include "../os.hpp"
-#include "../text.hpp"
 #include "menuObjects.hpp"
+#include "os.hpp"
+#include "text.hpp"
 #include <nlohmann/json.hpp>
 
 class Menu {
@@ -71,6 +71,26 @@ class ProjectMenu : public Menu {
 
     ProjectMenu();
     ~ProjectMenu();
+
+    void init() override;
+    void render() override;
+    void cleanup() override;
+};
+
+class SettingsMenu : public Menu {
+  private:
+  public:
+    ControlObject *settingsControl = nullptr;
+    ButtonObject *backButton = nullptr;
+    ButtonObject *Credits = nullptr;
+    ButtonObject *EnableUsername = nullptr;
+    ButtonObject *ChangeUsername = nullptr;
+
+    bool UseCostumeUsername = false;
+    std::string username;
+
+    SettingsMenu();
+    ~SettingsMenu();
 
     void init() override;
     void render() override;

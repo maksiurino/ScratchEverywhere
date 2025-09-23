@@ -1,8 +1,6 @@
 #pragma once
 #include "os.hpp"
 #include "value.hpp"
-#include <chrono>
-#include <iostream>
 #include <nlohmann/json.hpp>
 #include <string>
 #include <unordered_map>
@@ -105,6 +103,7 @@ struct Costume {
     std::string fullName;
     std::string dataFormat;
     int bitmapResolution;
+    bool isSVG;
     double rotationCenterX;
     double rotationCenterY;
 };
@@ -185,7 +184,7 @@ class Sprite {
     std::unordered_map<std::string, Variable> variables;
     std::unordered_map<std::string, Block> blocks;
     std::unordered_map<std::string, List> lists;
-    std::unordered_map<std::string, Sound> sounds;
+    std::map<std::string, Sound> sounds;
     std::vector<Costume> costumes;
     std::unordered_map<std::string, Comment> comments;
     std::unordered_map<std::string, Broadcast> broadcasts;

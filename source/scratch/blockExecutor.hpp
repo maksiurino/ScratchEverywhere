@@ -1,8 +1,6 @@
 #pragma once
-#include "interpret.hpp"
 #include "os.hpp"
 #include "sprite.hpp"
-#include <chrono>
 #include <functional>
 #include <unordered_map>
 

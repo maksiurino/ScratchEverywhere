@@ -1,6 +1,6 @@
 #include "unzip.hpp"
+#include "image.hpp"
 #include "menus/loading.hpp"
-#include "render.hpp"
 #ifdef __3DS__
 #include <3ds.h>
 #elif defined(SDL_BUILD)

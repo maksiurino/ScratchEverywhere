@@ -1,10 +1,12 @@
 #include "mainMenu.hpp"
-#include "../audio.hpp"
-#include "../image.hpp"
-#include "../input.hpp"
-#include "../interpret.hpp"
-#include "../render.hpp"
-#include "../unzip.hpp"
+#include "audio.hpp"
+#include "image.hpp"
+#include "input.hpp"
+#include "interpret.hpp"
+#include "keyboard.hpp"
+#include "render.hpp"
+#include "unzip.hpp"
+#include <cctype>
 #include <nlohmann/json.hpp>
 #ifdef __WIIU__
 #include <whb/sdcard.h>
@@ -91,15 +93,16 @@ void MainMenu::init() {
         splashText->scale = (float)logo->image->getWidth() / (splashText->getSize()[0] * 1.15);
     }
 
-    loadButton = new ButtonObject("", "gfx/menu/play.png", 200, 180, "gfx/menu/Ubuntu-Bold");
+    loadButton = new ButtonObject("", "gfx/menu/play.svg", 100, 180, "gfx/menu/Ubuntu-Bold");
     loadButton->isSelected = true;
-    // settingsButton = new ButtonObject("", "gfx/menu/settings.png", 300, 180, "gfx/menu/Ubuntu-Bold");
+    settingsButton = new ButtonObject("", "gfx/menu/settings.svg", 300, 180, "gfx/menu/Ubuntu-Bold");
+
     mainMenuControl = new ControlObject();
     mainMenuControl->selectedObject = loadButton;
-    // loadButton->buttonRight = settingsButton;
-    // settingsButton->buttonLeft = loadButton;
+    loadButton->buttonRight = settingsButton;
+    settingsButton->buttonLeft = loadButton;
     mainMenuControl->buttonObjects.push_back(loadButton);
-    // mainMenuControl->buttonObjects.push_back(settingsButton);
+    mainMenuControl->buttonObjects.push_back(settingsButton);
     isInitialized = true;
 }
 
@@ -130,12 +133,14 @@ void MainMenu::render() {
     // begin 3DS bottom screen frame
     Render::beginFrame(1, 117, 77, 117);
 
-    // if (settingsButton->isPressed()) {
-    //     settingsButton->x += 100;
-    // }
+    if (settingsButton->isPressed()) {
+        SettingsMenu *settingsMenu = new SettingsMenu();
+        MenuManager::changeMenu(settingsMenu);
+        return;
+    }
 
     loadButton->render();
-    // settingsButton->render();
+    settingsButton->render();
     mainMenuControl->render();
 
     Render::endFrame();
@@ -180,7 +185,7 @@ ProjectMenu::~ProjectMenu() {
 void ProjectMenu::init() {
 
     projectControl = new ControlObject();
-    backButton = new ButtonObject("", "gfx/menu/buttonBack.png", 375, 20, "gfx/menu/Ubuntu-Bold");
+    backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
     backButton->needsToBeSelected = false;
     backButton->scale = 1.0;
 
@@ -190,7 +195,7 @@ void ProjectMenu::init() {
     // initialize text and set positions
     int yPosition = 120;
     for (std::string &file : projectFiles) {
-        ButtonObject *project = new ButtonObject(file.substr(0, file.length() - 4), "gfx/menu/projectBox.png", 0, yPosition, "gfx/menu/Ubuntu-Bold");
+        ButtonObject *project = new ButtonObject(file.substr(0, file.length() - 4), "gfx/menu/projectBox.svg", 0, yPosition, "gfx/menu/Ubuntu-Bold");
         project->text->setColor(Math::color(0, 0, 0, 255));
         project->canBeClicked = false;
         project->y -= project->text->getSize()[1] / 2;
@@ -231,7 +236,7 @@ void ProjectMenu::init() {
     // check if user has any projects
     if (projectFiles.size() == 0 && UnzippedFiles.size() == 0) {
         hasProjects = false;
-        noProjectsButton = new ButtonObject("", "gfx/menu/noProjects.png", 200, 120, "gfx/menu/Ubuntu-Bold");
+        noProjectsButton = new ButtonObject("", "gfx/menu/noProjects.svg", 200, 120, "gfx/menu/Ubuntu-Bold");
         projectControl->selectedObject = noProjectsButton;
         projectControl->selectedObject->isSelected = true;
         noProjectsText = createTextObject("No Scratch projects found!", 0, 0);
@@ -242,11 +247,13 @@ void ProjectMenu::init() {
 #ifdef __WIIU__
         noProjectInfo->setText("Put Scratch projects in sd:/wiiu/scratch-wiiu/ !");
 #elif defined(__3DS__)
-        noProjectInfo->setText("Project location has moved to sd:/3ds/scratch-everywhere !");
+        noProjectInfo->setText("Put Scratch projects in sd:/3ds/scratch-everywhere/ !");
 #elif defined(WII)
-        noProjectInfo->setText("Put Scratch projects in sd:/apps/scratch-wii !");
+        noProjectInfo->setText("Put Scratch projects in sd:/apps/scratch-wii/ !");
 #elif defined(VITA)
-        noProjectInfo->setText("Put Scratch projects in ux0:data/scratch-vita/ ! If the folder doesn't exist, create it.");
+        noProjectInfo->setText("Put Scratch projects in ux0:data/scratch-vita/ !");
+#elif defined(GAMECUBE)
+        noProjectInfo->setText("Put Scratch projects in SD Card A:/scratch-gamecube/ !");
 #else
         noProjectInfo->setText("Put Scratch projects in the same folder as the app!");
 #endif
@@ -411,8 +418,179 @@ void ProjectMenu::cleanup() {
     isInitialized = false;
 }
 
+SettingsMenu::SettingsMenu() {
+    init();
+}
+
+SettingsMenu::~SettingsMenu() {
+    cleanup();
+}
+
+void SettingsMenu::init() {
+
+    settingsControl = new ControlObject();
+
+    backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
+    backButton->scale = 1.0;
+    backButton->needsToBeSelected = false;
+    Credits = new ButtonObject("Credits (dummy)", "gfx/menu/projectBox.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
+    Credits->text->setColor(Math::color(0, 0, 0, 255));
+    Credits->text->setScale(0.5);
+    EnableUsername = new ButtonObject("Username: clickToLoad", "gfx/menu/projectBox.svg", 200, 130, "gfx/menu/Ubuntu-Bold");
+    EnableUsername->text->setColor(Math::color(0, 0, 0, 255));
+    EnableUsername->text->setScale(0.5);
+    ChangeUsername = new ButtonObject("name: Player", "gfx/menu/projectBox.svg", 200, 180, "gfx/menu/Ubuntu-Bold");
+    ChangeUsername->text->setColor(Math::color(0, 0, 0, 255));
+    ChangeUsername->text->setScale(0.5);
+
+    // initial selected object
+    settingsControl->selectedObject = EnableUsername;
+    EnableUsername->isSelected = true;
+
+    UseCostumeUsername = false;
+    username = "Player";
+    std::ifstream inFile(OS::getScratchFolderLocation() + "Settings.json");
+
+    if (inFile) {
+        nlohmann::json j;
+        inFile >> j;
+        inFile.close();
+
+        if (j.contains("EnableUsername") && j["EnableUsername"].is_boolean()) {
+            UseCostumeUsername = j["EnableUsername"].get<bool>();
+            if (j.contains("Username") && j["Username"].is_string()) {
+                if (j["Username"].get<std::string>().length() <= 9) {
+                    bool hasNonSpace = false;
+                    for (char c : j["Username"].get<std::string>()) {
+                        if (std::isalnum(static_cast<unsigned char>(c)) || c == '_') {
+                            hasNonSpace = true;
+                        } else if (!std::isspace(static_cast<unsigned char>(c))) {
+                            break;
+                        }
+                    }
+                    if (hasNonSpace) username = j["Username"].get<std::string>();
+                    else username = "Player";
+                }
+            }
+        }
+    }
+
+    if (UseCostumeUsername) {
+        EnableUsername->text->setText("Username: Enabled");
+        ChangeUsername->text->setText("name: " + username);
+        Credits->buttonDown = EnableUsername;
+        Credits->buttonUp = ChangeUsername;
+        EnableUsername->buttonDown = ChangeUsername;
+        EnableUsername->buttonUp = Credits;
+        ChangeUsername->buttonUp = EnableUsername;
+        ChangeUsername->buttonDown = Credits;
+    } else {
+        EnableUsername->text->setText("Username: Disabled");
+        Credits->buttonDown = EnableUsername;
+        Credits->buttonUp = EnableUsername;
+        EnableUsername->buttonDown = Credits;
+        EnableUsername->buttonUp = Credits;
+    }
+
+    settingsControl->buttonObjects.push_back(Credits);
+    settingsControl->buttonObjects.push_back(ChangeUsername);
+    settingsControl->buttonObjects.push_back(EnableUsername);
+
+    isInitialized = true;
+}
+
+void SettingsMenu::render() {
+    Input::getInput();
+    settingsControl->input();
+    if (backButton->isPressed({"b", "y"})) {
+        MainMenu *mainMenu = new MainMenu();
+        MenuManager::changeMenu(mainMenu);
+        return;
+    }
+
+    Render::beginFrame(0, 147, 138, 168);
+    Render::beginFrame(1, 147, 138, 168);
+
+    backButton->render();
+    Credits->render();
+    EnableUsername->render();
+    if (UseCostumeUsername) ChangeUsername->render();
+
+    if (EnableUsername->isPressed({"a"})) {
+        if (UseCostumeUsername) {
+            UseCostumeUsername = false;
+            EnableUsername->text->setText("Username: disabled");
+            if (settingsControl->selectedObject == ChangeUsername) settingsControl->selectedObject = EnableUsername;
+            Credits->buttonDown = EnableUsername;
+            Credits->buttonUp = EnableUsername;
+            EnableUsername->buttonDown = Credits;
+            EnableUsername->buttonUp = Credits;
+        } else {
+            UseCostumeUsername = true;
+            EnableUsername->text->setText("Username: Enabled");
+            ChangeUsername->text->setText("name: " + username);
+            Credits->buttonDown = EnableUsername;
+            Credits->buttonUp = ChangeUsername;
+            EnableUsername->buttonDown = ChangeUsername;
+            EnableUsername->buttonUp = Credits;
+            ChangeUsername->buttonUp = EnableUsername;
+            ChangeUsername->buttonDown = Credits;
+        }
+    }
+
+    if (ChangeUsername->isPressed({"a"})) {
+        Keyboard kbd;
+        std::string newUsername = kbd.openKeyboard(username.c_str());
+        // You could also use regex here, Idk what would be more sensible
+        // std::regex_match(s, std::regex("(?=.*[A-Za-z0-9_])[A-Za-z0-9_ ]+"))
+        if (newUsername.length() <= 9) {
+            bool hasNonSpace = false;
+            for (char c : newUsername) {
+                if (std::isalnum(static_cast<unsigned char>(c)) || c == '_') {
+                    hasNonSpace = true;
+                } else if (!std::isspace(static_cast<unsigned char>(c))) {
+                    break;
+                }
+            }
+            if (hasNonSpace) username = newUsername;
+            ChangeUsername->text->setText(username);
+        }
+    }
+    settingsControl->render();
+    Render::endFrame();
+}
+
+void SettingsMenu::cleanup() {
+    if (backButton != nullptr) {
+        delete backButton;
+        backButton = nullptr;
+    }
+    if (Credits != nullptr) {
+        delete Credits;
+        Credits = nullptr;
+    }
+    if (EnableUsername != nullptr) {
+        delete EnableUsername;
+        EnableUsername = nullptr;
+    }
+    if (ChangeUsername != nullptr) {
+        delete ChangeUsername;
+        ChangeUsername = nullptr;
+    }
+
+    // save username and EnableUsername in json
+    std::ofstream outFile(OS::getScratchFolderLocation() + "Settings.json");
+    nlohmann::json j;
+    j["EnableUsername"] = UseCostumeUsername;
+    j["Username"] = username;
+    outFile << j.dump(4);
+    outFile.close();
+
+    isInitialized = false;
+}
+
 ProjectSettings::ProjectSettings(std::string projPath, bool existUnpacked) {
-    Log::log(existUnpacked ? "ALREADY" : "NO");
+    Log::log(existUnpacked ? "Project exists Unpacked" : "Project does not exist Unpacked");
     projectPath = projPath;
     canUnpacked = !existUnpacked;
     init();
@@ -424,18 +602,18 @@ ProjectSettings::~ProjectSettings() {
 void ProjectSettings::init() {
     // initialize
 
-    changeControlsButton = new ButtonObject("Change Controls", "gfx/menu/projectBox.png", 200, 80, "gfx/menu/Ubuntu-Bold");
+    changeControlsButton = new ButtonObject("Change Controls", "gfx/menu/projectBox.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
     changeControlsButton->text->setColor(Math::color(0, 0, 0, 255));
-    UnpackProjectButton = new ButtonObject("Unpack Project", "gfx/menu/projectBox.png", 200, 130, "gfx/menu/Ubuntu-Bold");
+    UnpackProjectButton = new ButtonObject("Unpack Project", "gfx/menu/projectBox.svg", 200, 130, "gfx/menu/Ubuntu-Bold");
     UnpackProjectButton->text->setColor(Math::color(0, 0, 0, 255));
-    DeleteUnpackProjectButton = new ButtonObject("Delete Unpacked Proj.", "gfx/menu/projectBox.png", 200, 130, "gfx/menu/Ubuntu-Bold");
+    DeleteUnpackProjectButton = new ButtonObject("Delete Unpacked Proj.", "gfx/menu/projectBox.svg", 200, 130, "gfx/menu/Ubuntu-Bold");
     DeleteUnpackProjectButton->text->setColor(Math::color(255, 0, 0, 255));
-    bottomScreenButton = new ButtonObject("Bottom Screen", "gfx/menu/projectBox.png", 200, 180, "gfx/menu/Ubuntu-Bold");
+    bottomScreenButton = new ButtonObject("Bottom Screen", "gfx/menu/projectBox.svg", 200, 180, "gfx/menu/Ubuntu-Bold");
     bottomScreenButton->text->setColor(Math::color(0, 0, 0, 255));
     bottomScreenButton->text->setScale(0.5);
 
     settingsControl = new ControlObject();
-    backButton = new ButtonObject("", "gfx/menu/buttonBack.png", 375, 20, "gfx/menu/Ubuntu-Bold");
+    backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
     backButton->scale = 1.0;
     backButton->needsToBeSelected = false;
 
@@ -665,7 +843,7 @@ void ControlsMenu::init() {
 
     settingsControl = new ControlObject();
     settingsControl->selectedObject = nullptr;
-    backButton = new ButtonObject("", "gfx/menu/buttonBack.png", 375, 20, "gfx/menu/Ubuntu-Bold");
+    backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
     applyButton = new ButtonObject("Apply (Y)", "gfx/menu/optionBox.svg", 200, 230, "gfx/menu/Ubuntu-Bold");
     applyButton->scale = 0.6;
     applyButton->needsToBeSelected = false;

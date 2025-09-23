@@ -3,7 +3,6 @@
 #include "image.hpp"
 #include "input.hpp"
 #include "math.hpp"
-#include "miniz/miniz.h"
 #include "nlohmann/json.hpp"
 #include "os.hpp"
 #include "render.hpp"
@@ -37,6 +36,9 @@ extern bool cloudProject;
 
 std::unique_ptr<MistConnection> cloudConnection = nullptr;
 #endif
+
+bool useCustomUsername;
+std::string customUsername;
 
 std::vector<Sprite *> sprites;
 std::vector<Sprite> spritePool;
@@ -117,6 +119,32 @@ void initMist() {
 #endif
 
 bool Scratch::startScratchProject() {
+    customUsername = "Player";
+    useCustomUsername = false;
+
+    std::ifstream inFile(OS::getScratchFolderLocation() + "Settings.json");
+    if (inFile.good()) {
+        nlohmann::json j;
+        inFile >> j;
+        inFile.close();
+
+        if (j.contains("EnableUsername") && j["EnableUsername"].is_boolean()) {
+            useCustomUsername = j["EnableUsername"].get<bool>();
+        }
+
+        if (j.contains("Username") && j["Username"].is_string()) {
+            bool hasNonSpace = false;
+            for (char c : j["Username"].get<std::string>()) {
+                if (std::isalnum(static_cast<unsigned char>(c)) || c == '_') {
+                    hasNonSpace = true;
+                } else if (!std::isspace(static_cast<unsigned char>(c))) {
+                    break;
+                }
+            }
+            if (hasNonSpace) customUsername = j["Username"].get<std::string>();
+            else customUsername = "Player";
+        }
+    }
 #ifdef ENABLE_CLOUDVARS
     if (cloudProject && !projectJSON.empty()) initMist();
 #endif
@@ -232,9 +260,14 @@ void cleanupSprites() {
 std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite) {
     std::vector<std::pair<double, double>> collisionPoints;
 
+    double divisionAmount = 2.0;
+
+    if (currentSprite->costumes[currentSprite->currentCostume].isSVG)
+        divisionAmount = 1.0;
+
     // Get sprite dimensions, scaled by size
-    double halfWidth = (currentSprite->spriteWidth * currentSprite->size / 100.0) / 2.0;
-    double halfHeight = (currentSprite->spriteHeight * currentSprite->size / 100.0) / 2.0;
+    const double halfWidth = (currentSprite->spriteWidth * currentSprite->size / 100.0) / divisionAmount;
+    const double halfHeight = (currentSprite->spriteHeight * currentSprite->size / 100.0) / divisionAmount;
 
     // Calculate rotation in radians
     double rotation = currentSprite->rotation;
@@ -671,6 +704,10 @@ void loadSprites(const nlohmann::json &json) {
             }
             if (data.contains("dataFormat")) {
                 newCostume.dataFormat = data["dataFormat"];
+                if (newCostume.dataFormat == "svg" || newCostume.dataFormat == "SVG")
+                    newCostume.isSVG = true;
+                else
+                    newCostume.isSVG = false;
             }
             if (data.contains("md5ext")) {
                 newCostume.fullName = data["md5ext"];
