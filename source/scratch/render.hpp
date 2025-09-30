@@ -20,6 +20,8 @@ class Render {
 
     static bool Init();
 
+    static bool initPen();
+
     static void deInit();
 
     /**

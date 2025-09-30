@@ -1,9 +1,11 @@
+#include "scratch/render.hpp"
+#include "../scratch/blocks/pen.hpp"
+#include "../scratch/interpret.hpp"
 #include "audio.hpp"
 #include "blocks/pen.hpp"
 #include "image.hpp"
 #include "input.hpp"
 #include "interpret.hpp"
-#include "render.hpp"
 #include "text.hpp"
 #include "unzip.hpp"
 #ifdef ENABLE_AUDIO
@@ -61,30 +63,6 @@ bool Render::Init() {
     topScreen = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
     topScreenRightEye = C2D_CreateScreenTarget(GFX_TOP, GFX_RIGHT);
     bottomScreen = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
-
-    // texture dimensions must be a power of 2. subtex dimensions can be the actual resolution.
-    penTex = new C3D_Tex();
-    penTex->width = 512;
-    penTex->height = 256;
-    penImage.tex = penTex;
-
-    penSubtex = {
-        400,
-        240,
-        0,
-        0,
-        1,
-        1};
-
-    penImage.subtex = &penSubtex;
-
-    if (!C3D_TexInitVRAM(penImage.tex, penTex->width, penTex->height, GPU_RGBA8)) { // TODO: Support other resolutions.
-        penRenderTarget = nullptr;
-        Log::logError("failed to create pen texture.");
-    } else {
-        penRenderTarget = C3D_RenderTargetCreateFromTex(penImage.tex, GPU_TEXFACE_2D, 0, GPU_RB_DEPTH16);
-        C3D_RenderTargetClear(penRenderTarget, C3D_CLEAR_ALL, C2D_Color32(0, 0, 0, 0), 0);
-    }
 
 #ifdef ENABLE_CLOUDVARS
     int ret;
@@ -146,6 +124,36 @@ int Render::getHeight() {
     return SCREEN_HEIGHT;
 }
 
+bool Render::initPen() {
+    if (penRenderTarget != nullptr) return true;
+
+    // texture dimensions must be a power of 2. subtex dimensions can be the actual resolution.
+    penTex = new C3D_Tex();
+    penTex->width = Math::next_pow2(Scratch::projectWidth);
+    penTex->height = Math::next_pow2(Scratch::projectHeight);
+    penImage.tex = penTex;
+
+    penSubtex = {
+        static_cast<u16>(Scratch::projectWidth),
+        static_cast<u16>(Scratch::projectHeight),
+        0,
+        0,
+        1,
+        1};
+
+    penImage.subtex = &penSubtex;
+
+    if (!C3D_TexInitVRAM(penImage.tex, penTex->width, penTex->height, GPU_RGBA8)) { // TODO: Support other resolutions.
+        penRenderTarget = nullptr;
+        Log::logError("Failed to create pen texture.");
+        return false;
+    } else {
+        penRenderTarget = C3D_RenderTargetCreateFromTex(penImage.tex, GPU_TEXFACE_2D, 0, GPU_RB_DEPTH16);
+        C3D_RenderTargetClear(penRenderTarget, C3D_CLEAR_ALL, C2D_Color32(0, 0, 0, 0), 0);
+    }
+    return true;
+}
+
 void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite) {
     const ColorRGB rgbColor = HSB2RGB(sprite->penData.color);
     C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
@@ -153,8 +161,8 @@ void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite)
     C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
 
     const float heightMultiplier = 0.5f;
-    const float scaleX = static_cast<double>(SCREEN_WIDTH) / Scratch::projectWidth;
-    const float scaleY = static_cast<double>(SCREEN_HEIGHT) / Scratch::projectHeight;
+    const float scaleX = static_cast<double>(SCREEN_WIDTH) / penSubtex.width;
+    const float scaleY = static_cast<double>(SCREEN_HEIGHT) / penSubtex.height;
     const float scale = std::min(scaleX, scaleY);
     const u32 color = C2D_Color32(rgbColor.r, rgbColor.g, rgbColor.b, 255);
     const int thickness = std::clamp(static_cast<int>(sprite->penData.size * scale), 1, 1000);
@@ -406,7 +414,20 @@ void Render::renderSprites() {
         for (size_t i = 0; i < spritesByLayer.size(); i++) {
 
             // render the pen texture above the backdrop, but below every other sprite
-            if (i == 1) C2D_DrawImageAtRotated(penImage, SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.5, 0, M_PI, nullptr, 1.0f, 1.0f);
+            if (i == 1 && initPen()) {
+                const float scaleX = static_cast<float>(SCREEN_WIDTH) / penSubtex.width;
+                const float scaleY = static_cast<float>(SCREEN_HEIGHT) / penSubtex.height;
+                const float heightMultiplier = Render::renderMode != Render::BOTH_SCREENS ? 0.5f : 1.0f;
+
+                C2D_DrawImageAtRotated(penImage,
+                                       SCREEN_WIDTH * 0.5f,
+                                       SCREEN_HEIGHT * heightMultiplier,
+                                       0,
+                                       M_PI,
+                                       nullptr,
+                                       scaleX,
+                                       scaleY);
+            }
 
             Sprite *currentSprite = spritesByLayer[i];
             if (!currentSprite->visible) continue;
@@ -443,7 +464,20 @@ void Render::renderSprites() {
         for (size_t i = 0; i < spritesByLayer.size(); i++) {
 
             // render the pen texture above the backdrop, but below every other sprite
-            if (i == 1) C2D_DrawImageAtRotated(penImage, SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.5, 0, M_PI, nullptr, 1.0f, 1.0f);
+            if (i == 1 && initPen()) {
+                const float scaleX = Render::renderMode != Render::BOTH_SCREENS ? static_cast<float>(SCREEN_WIDTH) / penSubtex.width : 1.0f;
+                const float scaleY = Render::renderMode != Render::BOTH_SCREENS ? static_cast<float>(SCREEN_HEIGHT) / penSubtex.height : 1.0f;
+                const float heightMultiplier = Render::renderMode != Render::BOTH_SCREENS ? 0.5f : 1.0f;
+
+                C2D_DrawImageAtRotated(penImage,
+                                       SCREEN_WIDTH * 0.5f,
+                                       SCREEN_HEIGHT * heightMultiplier,
+                                       0,
+                                       M_PI,
+                                       nullptr,
+                                       scaleX,
+                                       scaleY);
+            }
 
             Sprite *currentSprite = spritesByLayer[i];
             if (!currentSprite->visible) continue;
@@ -478,6 +512,23 @@ void Render::renderSprites() {
         C2D_SceneBegin(bottomScreen);
 
         for (size_t i = 0; i < spritesByLayer.size(); i++) {
+
+            // render the pen texture above the backdrop, but below every other sprite
+            if (i == 1 && initPen()) {
+                const float scaleX = Render::renderMode != Render::BOTH_SCREENS ? static_cast<float>(SCREEN_WIDTH) / penSubtex.width : 1.0f;
+                const float scaleY = Render::renderMode != Render::BOTH_SCREENS ? static_cast<float>(SCREEN_HEIGHT) / penSubtex.height : 1.0f;
+                const float heightMultiplier = Render::renderMode != Render::BOTH_SCREENS ? 0.5f : 1.0f;
+
+                C2D_DrawImageAtRotated(penImage,
+                                       SCREEN_WIDTH * 0.5f,
+                                       (SCREEN_HEIGHT * heightMultiplier),
+                                       0,
+                                       M_PI,
+                                       nullptr,
+                                       scaleX,
+                                       scaleY);
+            }
+
             Sprite *currentSprite = spritesByLayer[i];
             if (!currentSprite->visible) continue;
 

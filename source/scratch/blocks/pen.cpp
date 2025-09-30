@@ -1,5 +1,6 @@
 #include "pen.hpp"
-#include "interpret.hpp"
+#include "../interpret.hpp"
+#include "../render.hpp"
 
 #ifdef __3DS__
 #include "../../3ds/image.hpp"
@@ -23,6 +24,7 @@ const unsigned int minPenSize = 1;
 const unsigned int maxPenSize = 1000;
 
 BlockResult PenBlocks::PenDown(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    if (!Render::initPen()) return BlockResult::CONTINUE;
     sprite->penData.down = true;
 
 #ifdef SDL_BUILD
@@ -40,15 +42,14 @@ BlockResult PenBlocks::PenDown(Block &block, Sprite *sprite, bool *withoutScreen
     const int SCREEN_WIDTH = 400;
     const int SCREEN_HEIGHT = 240;
 
-    const float heightMultiplier = 0.5f;
-    const float scaleX = static_cast<double>(SCREEN_WIDTH) / Scratch::projectWidth;
-    const float scaleY = static_cast<double>(SCREEN_HEIGHT) / Scratch::projectHeight;
+    const float scaleX = static_cast<double>(SCREEN_WIDTH) / penSubtex.width;
+    const float scaleY = static_cast<double>(SCREEN_HEIGHT) / penSubtex.height;
     const float scale = std::min(scaleX, scaleY);
     const u32 color = C2D_Color32(rgbColor.r, rgbColor.g, rgbColor.b, 255);
     const int thickness = std::clamp(static_cast<int>(sprite->penData.size * scale), 1, 1000);
 
     const float xSscaled = (sprite->xPosition * scale) + (SCREEN_WIDTH / 2);
-    const float yScaled = (sprite->yPosition * -1 * scale) + (SCREEN_HEIGHT * heightMultiplier);
+    const float yScaled = (sprite->yPosition * -1 * scale) + (SCREEN_HEIGHT * 0.5);
     const float radius = thickness / 2.0f;
     C2D_DrawCircleSolid(xSscaled, yScaled, 0, radius, color);
 #endif
@@ -159,6 +160,7 @@ BlockResult PenBlocks::ChangePenSizeBy(Block &block, Sprite *sprite, bool *witho
 
 #ifdef SDL_BUILD
 BlockResult PenBlocks::EraseAll(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    if (!Render::initPen()) return BlockResult::CONTINUE;
     SDL_SetRenderTarget(renderer, penTexture);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
     SDL_RenderClear(renderer);
@@ -168,7 +170,7 @@ BlockResult PenBlocks::EraseAll(Block &block, Sprite *sprite, bool *withoutScree
 }
 
 BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    if (!sprite->visible) return BlockResult::CONTINUE;
+    if (!sprite->visible || !Render::initPen()) return BlockResult::CONTINUE;
 
     const auto &imgFind = images.find(sprite->costumes[sprite->currentCostume].id);
     if (imgFind == images.end()) {
@@ -232,12 +234,13 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
 #elif defined(__3DS__)
 
 BlockResult PenBlocks::EraseAll(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    if (!Render::initPen()) return BlockResult::CONTINUE;
     C3D_RenderTargetClear(penRenderTarget, C3D_CLEAR_ALL, C2D_Color32(0, 0, 0, 0), 0);
     return BlockResult::CONTINUE;
 }
 
 BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-
+    if (!Render::initPen()) return BlockResult::CONTINUE;
     const int SCREEN_WIDTH = 400;
     const int SCREEN_HEIGHT = 240;
 
@@ -254,26 +257,19 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
 
     // TODO: remove duplicate code (maybe make a Render::drawSprite function.)
 
-    double scaleX = static_cast<double>(SCREEN_WIDTH) / Scratch::projectWidth;
-    double scaleY = static_cast<double>(SCREEN_HEIGHT) / Scratch::projectHeight;
-    double spriteSizeX = sprite->size * 0.01;
-    double spriteSizeY = sprite->size * 0.01;
-    if (sprite->costumes[sprite->currentCostume].isSVG) {
-        spriteSizeX *= 2;
-        spriteSizeY *= 2;
-    }
-    double scale;
-    double heightMultiplier = 0.5;
-    int screenWidth = SCREEN_WIDTH;
-    scale = std::min(scaleX, scaleY);
+    const float scaleX = static_cast<float>(SCREEN_WIDTH) / penSubtex.width;
+    const float scaleY = static_cast<float>(SCREEN_HEIGHT) / penSubtex.height;
+    float spriteSize = sprite->costumes[sprite->currentCostume].isSVG ? (sprite->size * 0.01f) * 2.0f : sprite->size * 0.01f;
+    const float scale = std::min(scaleX, scaleY);
+    const int screenWidth = SCREEN_WIDTH;
 
-    double rotation = Math::degreesToRadians(sprite->rotation - 90.0f);
+    float rotation = Math::degreesToRadians(sprite->rotation - 90.0f);
     bool flipX = false;
 
     // check for rotation style
     if (sprite->rotationStyle == sprite->LEFT_RIGHT) {
         if (std::cos(rotation) < 0) {
-            spriteSizeX *= -1;
+            spriteSize *= -1;
             flipX = true;
         }
         rotation = 0;
@@ -287,15 +283,15 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
     double rotationCenterY = ((((sprite->rotationCenterY - sprite->spriteHeight)) / 2) * scale);
     if (flipX) rotationCenterX -= sprite->spriteWidth;
 
-    const double offsetX = rotationCenterX * spriteSizeX;
-    const double offsetY = rotationCenterY * spriteSizeY;
+    const double offsetX = rotationCenterX * spriteSize;
+    const double offsetY = rotationCenterY * spriteSize;
 
     C2D_ImageTint tinty;
 
     // set ghost and brightness effect
     if (sprite->brightnessEffect != 0.0f || sprite->ghostEffect != 0.0f) {
-        float brightnessEffect = sprite->brightnessEffect * 0.01f;
-        float alpha = 255.0f * (1.0f - sprite->ghostEffect / 100.0f);
+        const float brightnessEffect = sprite->brightnessEffect * 0.01f;
+        const float alpha = 255.0f * (1.0f - sprite->ghostEffect / 100.0f);
         if (brightnessEffect > 0)
             C2D_PlainImageTint(&tinty, C2D_Color32(255, 255, 255, alpha), brightnessEffect);
         else
@@ -305,12 +301,12 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
     C2D_DrawImageAtRotated(
         *costumeTexture,
         static_cast<int>((sprite->xPosition * scale) + (screenWidth / 2) - offsetX * std::cos(rotation) + offsetY * std::sin(rotation)),
-        static_cast<int>((sprite->yPosition * -1 * scale) + (SCREEN_HEIGHT * heightMultiplier) - offsetX * std::sin(rotation) - offsetY * std::cos(rotation)),
+        static_cast<int>((sprite->yPosition * -1 * scale) + (SCREEN_HEIGHT * 0.5) - offsetX * std::sin(rotation) - offsetY * std::cos(rotation)),
         1,
         rotation,
         &tinty,
-        (spriteSizeX)*scale / 2.0f,
-        (spriteSizeY)*scale / 2.0f);
+        (spriteSize)*scale / 2.0f,
+        (spriteSize)*scale / 2.0f);
 
     return BlockResult::CONTINUE;
 }

@@ -215,6 +215,10 @@ int Render::getHeight() {
     return windowHeight;
 }
 
+bool Render::initPen() {
+    return true;
+}
+
 void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite) {
     const ColorRGB rgbColor = HSB2RGB(sprite->penData.color);
 
