@@ -52,6 +52,7 @@ class Value {
             break;
         case ValueType::BOOLEAN:
             stringValue = new std::string(*other.stringValue);
+            break;
         }
     }
     // Assignment operator
