@@ -41,7 +41,7 @@ int Unzip::openFile(std::ifstream *file) {
         file->open(embeddedFilename, std::ios::binary | std::ios::ate);
         if (!(*file)) {
 
-            file->open(OS::getScratchFolderLocation() + "project.sb3", std::ios::binary | std::ios::ate);
+            file->open(OS::getScratchFolderLocation() + "autoload_project.sb3", std::ios::binary | std::ios::ate);
 
             if (!file) {
 

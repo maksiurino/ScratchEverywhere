@@ -8,7 +8,7 @@ std::map<std::string, std::string> Input::inputControls;
 int Input::keyHeldFrames = 0;
 
 std::vector<int> Input::getTouchPosition() {
-    return {};
+    return {0, 0};
 }
 
 void Input::getInput() {
