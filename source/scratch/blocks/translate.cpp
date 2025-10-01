@@ -7,7 +7,7 @@
 #include <cstdlib>
 #include <math.h>
 
-Value TranslateBlocks::translate(Block &block, Sprite *sprite) {
+Value TranslateBlocks::getTranslate(Block &block, Sprite *sprite) {
   Value value1 = Scratch::getInputValue(block, "WORDS", sprite);
   Value value2 = Scratch::getInputValue(block, "LANGUAGE", sprite);
 }
