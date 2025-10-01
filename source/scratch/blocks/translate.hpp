@@ -4,6 +4,6 @@
 
 class TranslateBlocks {
   public:
-    static Value translate(Block &block, Sprite *sprite);
-    static Value language(Block &block, Sprite *sprite);
+    static Value getTranslate(Block &block, Sprite *sprite);
+    static Value menu_languages(Block &block, Sprite *sprite);
 }
